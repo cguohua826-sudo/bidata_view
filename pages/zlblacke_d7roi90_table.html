@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>zlblacke · D7 ROI ≥ 90% 对应指标明细</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --border:         rgba(11,11,11,0.10);
+    --accent:         #2a78d6;
+    --accent-2:       #eb6834;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --border:         rgba(255,255,255,0.10);
+      --accent:         #3987e5;
+      --accent-2:       #d95926;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page-plane:     #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --border:         rgba(255,255,255,0.10);
+    --accent:         #3987e5;
+    --accent-2:       #d95926;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page-plane);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--text-primary);
+  }
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 32px 20px 48px;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  .subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 4px; line-height: 1.6; }
+  .stat-row {
+    display: flex;
+    gap: 24px;
+    margin: 16px 0 20px;
+  }
+  .stat-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    flex: none;
+  }
+  .stat-label { font-size: 12px; color: var(--text-muted); margin: 0 0 4px; }
+  .stat-value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 20px 20px;
+    overflow-x: auto;
+  }
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  table.data-table caption { display: none; }
+  table.data-table th, table.data-table td {
+    text-align: right;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--gridline);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  table.data-table th:first-child, table.data-table td:first-child { text-align: left; }
+  table.data-table th {
+    color: var(--text-muted);
+    font-weight: 500;
+    position: sticky;
+    top: 0;
+    background: var(--surface-1);
+  }
+  table.data-table td.hit { color: var(--accent); font-weight: 600; }
+  table.data-table td.hit2 { color: var(--accent-2); font-weight: 600; }
+  .note { font-size: 12px; color: var(--text-muted); margin-top: 12px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <div class="page">
+    <h1>zlblacke · 近180天 D7 ROI ≥ 90% 对应指标明细</h1>
+    <p class="subtitle">窗口：2026-02-26 ~ 2026-08-24（该应用实际有数据天数为 2026-05-24 ~ 2026-08-24，共 93 天）· 广告格式：video + 插屏 · 已剔除 D7 ROI 尚未成熟（近7天）及数据异常的日期</p>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <p class="stat-label">符合条件天数</p>
+        <p class="stat-value" id="hit-count">-</p>
+      </div>
+      <div class="stat-tile">
+        <p class="stat-label">可比日期数（D7 ROI 已成熟）</p>
+        <p class="stat-value">85</p>
+      </div>
+      <div class="stat-tile">
+        <p class="stat-label">达标占比</p>
+        <p class="stat-value" id="hit-ratio">-</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>D0 ROI</th>
+            <th>D7 ROI</th>
+            <th>CPI</th>
+            <th>广告LTV0</th>
+            <th>广告eCPM0</th>
+            <th>人均播放次数</th>
+            <th>人均在线时长</th>
+            <th>D1留存率</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <p class="note">
+      口径说明：D0/D7 ROI = 总收入/(广告费(混合)+归因费)；CPI = (广告费(混合)+归因费)/新增；广告LTV0 = 同期新增用户累计广告收入/新增用户数；
+      广告eCPM0 = 新增留存用户收入/广告展示次数×1000；人均播放次数为求和值口径；人均在线时长 = 活跃用户总时长/活跃；D1留存率 = 留存用户数/新增用户数。
+      以上均受广告格式(video+插屏)级联，数据为"0时区/预估收入"口径，来自看板 publish_max_rewarded。
+    </p>
+
+    <h1 style="margin-top:36px;">在此基础上：D1留存率 &gt; 33% 的日期</h1>
+    <p class="subtitle">在上表 60 天（D7 ROI ≥ 90%）中，进一步筛选 D1留存率 &gt; 33% 的日期</p>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <p class="stat-label">符合条件天数</p>
+        <p class="stat-value" id="hit-count-2">-</p>
+      </div>
+      <div class="stat-tile">
+        <p class="stat-label">上层基数（D7 ROI≥90%）</p>
+        <p class="stat-value">60</p>
+      </div>
+      <div class="stat-tile">
+        <p class="stat-label">占比</p>
+        <p class="stat-value" id="hit-ratio-2">-</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>D0 ROI</th>
+            <th>D7 ROI</th>
+            <th>CPI</th>
+            <th>广告LTV0</th>
+            <th>广告eCPM0</th>
+            <th>人均播放次数</th>
+            <th>人均在线时长</th>
+            <th>D1留存率</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-2"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = [
+  {date:"2026-05-24", d0:"56.12%", d7:"96.01%", cpi:"2.149", ltv0:"1.206", ecpm0:"128.259", plays:"25.49", online:"21.90", d1:"28.23%"},
+  {date:"2026-05-25", d0:"55.22%", d7:"90.97%", cpi:"2.057", ltv0:"1.136", ecpm0:"122.133", plays:"24.46", online:"20.93", d1:"26.53%"},
+  {date:"2026-05-26", d0:"52.16%", d7:"101.86%", cpi:"2.178", ltv0:"1.136", ecpm0:"120.962", plays:"26.05", online:"19.57", d1:"29.05%"},
+  {date:"2026-05-28", d0:"58.57%", d7:"103.74%", cpi:"2.088", ltv0:"1.223", ecpm0:"136.497", plays:"27.20", online:"20.84", d1:"27.36%"},
+  {date:"2026-05-29", d0:"57.27%", d7:"107.50%", cpi:"1.935", ltv0:"1.108", ecpm0:"118.679", plays:"26.86", online:"20.48", d1:"29.90%"},
+  {date:"2026-05-30", d0:"63.80%", d7:"115.39%", cpi:"2.160", ltv0:"1.378", ecpm0:"113.873", plays:"29.95", online:"19.58", d1:"28.43%"},
+  {date:"2026-05-31", d0:"84.02%", d7:"129.93%", cpi:"2.056", ltv0:"1.727", ecpm0:"141.296", plays:"31.63", online:"22.36", d1:"28.24%"},
+  {date:"2026-06-01", d0:"74.03%", d7:"132.85%", cpi:"2.011", ltv0:"1.489", ecpm0:"115.168", plays:"30.66", online:"22.48", d1:"33.50%"},
+  {date:"2026-06-02", d0:"66.45%", d7:"122.29%", cpi:"2.212", ltv0:"1.470", ecpm0:"142.613", plays:"25.17", online:"20.34", d1:"30.19%"},
+  {date:"2026-06-03", d0:"65.89%", d7:"110.14%", cpi:"2.064", ltv0:"1.360", ecpm0:"124.953", plays:"27.66", online:"21.19", d1:"31.41%"},
+  {date:"2026-06-04", d0:"55.57%", d7:"96.56%", cpi:"2.262", ltv0:"1.257", ecpm0:"143.323", plays:"18.93", online:"19.32", d1:"26.55%"},
+  {date:"2026-06-05", d0:"56.65%", d7:"97.31%", cpi:"2.488", ltv0:"1.409", ecpm0:"131.917", plays:"31.46", online:"19.76", d1:"28.02%"},
+  {date:"2026-06-06", d0:"68.90%", d7:"113.81%", cpi:"2.488", ltv0:"1.714", ecpm0:"131.684", plays:"33.13", online:"22.02", d1:"30.05%"},
+  {date:"2026-06-07", d0:"66.44%", d7:"114.50%", cpi:"2.275", ltv0:"1.511", ecpm0:"114.347", plays:"29.57", online:"24.16", d1:"30.13%"},
+  {date:"2026-06-08", d0:"71.11%", d7:"120.01%", cpi:"1.875", ltv0:"1.333", ecpm0:"78.059", plays:"43.06", online:"26.53", d1:"35.93%"},
+  {date:"2026-06-09", d0:"66.38%", d7:"104.58%", cpi:"2.134", ltv0:"1.416", ecpm0:"101.477", plays:"31.76", online:"25.83", d1:"34.43%"},
+  {date:"2026-06-10", d0:"53.89%", d7:"92.48%", cpi:"2.339", ltv0:"1.260", ecpm0:"93.923", plays:"34.15", online:"25.74", d1:"32.89%"},
+  {date:"2026-06-13", d0:"52.12%", d7:"97.21%", cpi:"2.258", ltv0:"1.177", ecpm0:"90.719", plays:"34.29", online:"26.59", d1:"34.93%"},
+  {date:"2026-06-15", d0:"55.16%", d7:"101.24%", cpi:"2.101", ltv0:"1.159", ecpm0:"85.330", plays:"36.95", online:"25.11", d1:"32.00%"},
+  {date:"2026-06-16", d0:"65.17%", d7:"103.81%", cpi:"2.043", ltv0:"1.331", ecpm0:"104.971", plays:"27.60", online:"24.46", d1:"33.21%"},
+  {date:"2026-06-17", d0:"60.97%", d7:"106.97%", cpi:"2.157", ltv0:"1.315", ecpm0:"114.678", plays:"28.77", online:"23.03", d1:"36.01%"},
+  {date:"2026-06-18", d0:"56.50%", d7:"91.04%", cpi:"2.038", ltv0:"1.152", ecpm0:"102.700", plays:"27.51", online:"21.39", d1:"30.41%"},
+  {date:"2026-06-19", d0:"58.59%", d7:"92.85%", cpi:"2.135", ltv0:"1.251", ecpm0:"99.709", plays:"26.03", online:"20.18", d1:"29.17%"},
+  {date:"2026-06-20", d0:"60.01%", d7:"104.03%", cpi:"2.073", ltv0:"1.244", ecpm0:"98.629", plays:"33.49", online:"20.67", d1:"31.93%"},
+  {date:"2026-06-21", d0:"54.39%", d7:"92.01%", cpi:"1.974", ltv0:"1.074", ecpm0:"101.019", plays:"23.80", online:"20.13", d1:"26.53%"},
+  {date:"2026-06-22", d0:"60.33%", d7:"105.87%", cpi:"2.005", ltv0:"1.210", ecpm0:"95.928", plays:"31.58", online:"20.69", d1:"29.12%"},
+  {date:"2026-06-23", d0:"59.16%", d7:"91.58%", cpi:"1.506", ltv0:"0.891", ecpm0:"68.701", plays:"31.62", online:"22.71", d1:"33.19%"},
+  {date:"2026-06-24", d0:"57.68%", d7:"93.94%", cpi:"1.821", ltv0:"1.051", ecpm0:"89.896", plays:"28.91", online:"21.36", d1:"31.24%"},
+  {date:"2026-06-25", d0:"60.68%", d7:"104.48%", cpi:"1.907", ltv0:"1.157", ecpm0:"101.502", plays:"26.33", online:"21.57", d1:"26.53%"},
+  {date:"2026-06-26", d0:"54.54%", d7:"92.97%", cpi:"2.347", ltv0:"1.280", ecpm0:"126.332", plays:"28.53", online:"21.25", d1:"31.30%"},
+  {date:"2026-06-27", d0:"55.39%", d7:"101.40%", cpi:"2.542", ltv0:"1.408", ecpm0:"137.584", plays:"25.95", online:"20.04", d1:"30.98%"},
+  {date:"2026-06-28", d0:"58.89%", d7:"92.88%", cpi:"2.463", ltv0:"1.450", ecpm0:"116.371", plays:"28.09", online:"21.80", d1:"28.22%"},
+  {date:"2026-06-30", d0:"60.00%", d7:"94.55%", cpi:"2.491", ltv0:"1.495", ecpm0:"134.231", plays:"25.69", online:"18.41", d1:"30.77%"},
+  {date:"2026-07-01", d0:"58.69%", d7:"93.98%", cpi:"2.475", ltv0:"1.453", ecpm0:"119.048", plays:"31.27", online:"18.17", d1:"27.97%"},
+  {date:"2026-07-02", d0:"58.72%", d7:"96.18%", cpi:"2.565", ltv0:"1.506", ecpm0:"116.764", plays:"30.49", online:"20.16", d1:"28.00%"},
+  {date:"2026-07-05", d0:"55.19%", d7:"100.42%", cpi:"2.635", ltv0:"1.454", ecpm0:"126.062", plays:"35.95", online:"18.14", d1:"27.88%"},
+  {date:"2026-07-06", d0:"56.69%", d7:"95.82%", cpi:"2.409", ltv0:"1.365", ecpm0:"99.289", plays:"35.70", online:"21.12", d1:"31.50%"},
+  {date:"2026-07-07", d0:"59.07%", d7:"101.86%", cpi:"2.196", ltv0:"1.297", ecpm0:"109.283", plays:"30.72", online:"19.82", d1:"28.67%"},
+  {date:"2026-07-08", d0:"57.44%", d7:"110.32%", cpi:"2.441", ltv0:"1.402", ecpm0:"112.363", plays:"32.56", online:"20.14", d1:"28.84%"},
+  {date:"2026-07-09", d0:"65.88%", d7:"122.90%", cpi:"2.523", ltv0:"1.662", ecpm0:"113.522", plays:"36.03", online:"22.52", d1:"33.01%"},
+  {date:"2026-07-11", d0:"60.10%", d7:"107.00%", cpi:"2.888", ltv0:"1.736", ecpm0:"125.921", plays:"29.62", online:"21.42", d1:"30.57%"},
+  {date:"2026-07-12", d0:"63.82%", d7:"117.57%", cpi:"2.551", ltv0:"1.628", ecpm0:"99.755", plays:"39.12", online:"23.08", d1:"31.17%"},
+  {date:"2026-07-13", d0:"74.00%", d7:"122.65%", cpi:"2.568", ltv0:"1.900", ecpm0:"115.126", plays:"42.05", online:"22.72", d1:"33.51%"},
+  {date:"2026-07-14", d0:"57.44%", d7:"90.12%", cpi:"2.577", ltv0:"1.480", ecpm0:"106.608", plays:"32.28", online:"22.78", d1:"30.88%"},
+  {date:"2026-07-17", d0:"57.68%", d7:"105.10%", cpi:"2.369", ltv0:"1.366", ecpm0:"89.898", plays:"42.54", online:"23.19", d1:"31.72%"},
+  {date:"2026-07-20", d0:"62.91%", d7:"105.88%", cpi:"2.257", ltv0:"1.420", ecpm0:"104.073", plays:"33.09", online:"21.65", d1:"31.22%"},
+  {date:"2026-07-21", d0:"58.95%", d7:"92.10%", cpi:"2.251", ltv0:"1.327", ecpm0:"86.245", plays:"32.54", online:"25.64", d1:"33.40%"},
+  {date:"2026-07-25", d0:"56.08%", d7:"93.82%", cpi:"2.247", ltv0:"1.260", ecpm0:"85.252", plays:"37.56", online:"25.27", d1:"30.97%"},
+  {date:"2026-07-26", d0:"58.81%", d7:"95.81%", cpi:"2.075", ltv0:"1.220", ecpm0:"85.776", plays:"34.60", online:"25.19", d1:"31.06%"},
+  {date:"2026-07-28", d0:"52.25%", d7:"92.10%", cpi:"2.385", ltv0:"1.246", ecpm0:"100.834", plays:"27.82", online:"23.04", d1:"32.28%"},
+  {date:"2026-07-29", d0:"53.92%", d7:"101.36%", cpi:"2.062", ltv0:"1.112", ecpm0:"75.986", plays:"32.39", online:"26.01", d1:"36.25%"},
+  {date:"2026-07-31", d0:"57.50%", d7:"98.40%", cpi:"2.031", ltv0:"1.168", ecpm0:"91.540", plays:"27.00", online:"24.04", d1:"28.76%"},
+  {date:"2026-08-01", d0:"49.59%", d7:"94.12%", cpi:"2.236", ltv0:"1.109", ecpm0:"77.506", plays:"36.45", online:"24.23", d1:"34.81%"},
+  {date:"2026-08-02", d0:"57.70%", d7:"90.13%", cpi:"2.278", ltv0:"1.314", ecpm0:"86.878", plays:"29.33", online:"24.05", d1:"28.82%"},
+  {date:"2026-08-03", d0:"49.84%", d7:"100.46%", cpi:"2.302", ltv0:"1.147", ecpm0:"94.635", plays:"27.89", online:"22.94", d1:"31.07%"},
+  {date:"2026-08-04", d0:"52.64%", d7:"111.56%", cpi:"2.528", ltv0:"1.331", ecpm0:"107.360", plays:"30.88", online:"22.55", d1:"35.88%"},
+  {date:"2026-08-05", d0:"53.70%", d7:"95.89%", cpi:"2.412", ltv0:"1.295", ecpm0:"99.424", plays:"28.27", online:"24.98", d1:"32.43%"},
+  {date:"2026-08-07", d0:"51.57%", d7:"95.13%", cpi:"2.579", ltv0:"1.330", ecpm0:"107.214", plays:"32.40", online:"23.36", d1:"33.13%"},
+  {date:"2026-08-10", d0:"55.99%", d7:"95.44%", cpi:"2.528", ltv0:"1.415", ecpm0:"96.886", plays:"31.94", online:"24.75", d1:"32.04%"},
+  {date:"2026-08-11", d0:"51.64%", d7:"91.09%", cpi:"2.463", ltv0:"1.272", ecpm0:"90.708", plays:"27.76", online:"23.94", d1:"31.11%"},
+];
+
+const tbody = document.getElementById("tbody");
+DATA.forEach(r => {
+  const tr = document.createElement("tr");
+  const cells = [r.date, r.d0, r.d7, r.cpi, r.ltv0, r.ecpm0, r.plays, r.online, r.d1];
+  cells.forEach((val, i) => {
+    const td = document.createElement("td");
+    td.textContent = val;
+    if (i === 2) td.classList.add("hit");
+    tr.appendChild(td);
+  });
+  tbody.appendChild(tr);
+});
+
+document.getElementById("hit-count").textContent = DATA.length;
+document.getElementById("hit-ratio").textContent = Math.round(DATA.length / 85 * 1000) / 10 + "%";
+
+const DATA2 = DATA.filter(r => parseFloat(r.d1) > 33);
+const tbody2 = document.getElementById("tbody-2");
+DATA2.forEach(r => {
+  const tr = document.createElement("tr");
+  const cells = [r.date, r.d0, r.d7, r.cpi, r.ltv0, r.ecpm0, r.plays, r.online, r.d1];
+  cells.forEach((val, i) => {
+    const td = document.createElement("td");
+    td.textContent = val;
+    if (i === 8) td.classList.add("hit2");
+    tr.appendChild(td);
+  });
+  tbody2.appendChild(tr);
+});
+
+document.getElementById("hit-count-2").textContent = DATA2.length;
+document.getElementById("hit-ratio-2").textContent = Math.round(DATA2.length / DATA.length * 1000) / 10 + "%";
+</script>
+</body>
+</html>
