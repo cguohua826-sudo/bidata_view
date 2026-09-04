@@ -3,183 +3,297 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>双周汇报面板 · sdypoolcharm / zlblacke</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+SC:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>zlblacke · 投放数据面板</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  :root{
-    --bg:#F5F3ED; --surface:#FFFFFF; --surface-2:#EFEBE1; --border:#E1DCCE;
-    --text:#292722; --text-dim:#6E6A5E; --text-faint:#9C9788;
-    --mtg:#C1791E; --unity:#127D82; --pos:#1E8F52; --neg:#C6414A; --warn:#B8871A; --neutral:#8A8577;
-    --prev:#B7B2A2; --sidebar-w:260px; --sidebar-w-collapsed:60px;
+  :root {
+    --page-bg:#f6f6f7;
+    --card-bg:#ffffff;
+    --card-border:#ececee;
+    --ink:#1a1a1a;
+    --ink-2:#4a4a4a;
+    --ink-3:#6f6f6f;
+    --good:#0ca30c;
+    --critical:#d03b3b;
+    --cur:#2a78d6;
+    --prev:#e34948;
+    --grid:#e1e0d9;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    /* 双周汇报模板（移植部分）token */
+    --tp-text:#243B49; --tp-dim:#5F7078; --tp-faint:#8A999F;
+    --tp-border:#D9E3E6; --tp-surface-2:#EAF0F2; --tp-prev:#B5C1C5; --tp-curr:#263640;
   }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  html{scroll-behavior:smooth;}
-  body{
-    background: radial-gradient(1200px 600px at -5% -10%, #FBF9F4 0%, var(--bg) 55%), var(--bg);
-    color:var(--text); font-family:'IBM Plex Sans SC','IBM Plex Sans',sans-serif; line-height:1.55;
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:36px 20px 60px;
+    background:var(--page-bg);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  .mono{font-family:'IBM Plex Mono',monospace;}
-  .layout{ display:flex; }
+  .wrap { max-width:1080px; margin:0 auto; }
+  .page-head { margin:0 4px 20px; }
+  .page-head h1 { font-size:22px; font-weight:700; margin:0 0 4px; }
+  .page-head .sub { font-size:13px; color:var(--ink-3); }
 
-  /* LEFT SIDEBAR — directory / TOC style */
+  .card {
+    background:var(--card-bg);
+    border:1px solid var(--card-border);
+    border-radius:14px;
+    padding:28px 30px 24px;
+    margin-bottom:22px;
+    box-shadow:0 1px 2px rgba(0,0,0,.03);
+  }
+  .card-title { font-size:20px; font-weight:700; margin:0 0 2px; letter-spacing:.2px; }
+  .card-meta { font-size:13.5px; color:var(--ink-3); margin:4px 0 18px; }
+  .card-meta b { color:var(--ink-2); font-weight:500; }
+
+  /* ===== 系列卡片（参照图样式） ===== */
+  table.list { width:100%; border-collapse:collapse; }
+  table.list th {
+    text-align:left; font-size:13px; font-weight:400; color:var(--ink-3);
+    padding:6px 8px 10px 0;
+  }
+  table.list td {
+    font-size:14px; color:var(--ink-2);
+    padding:11px 8px 11px 0;
+    border-bottom:1px solid #f3f3f4;
+    vertical-align:top;
+  }
+  table.list tr:last-child td { border-bottom:none; }
+  td.series { font-size:13px; color:#555555; font-family:var(--mono); word-break:break-all; line-height:1.45; }
+  td.channel { text-transform:lowercase; }
+  td.status { white-space:nowrap; }
+  .st { font-size:14px; font-weight:500; color:var(--ink); }
+  .st .dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; vertical-align:1px; }
+  .st.live { color:var(--good); }
+  .st.live .dot { background:var(--good); }
+  .st.stopped { color:var(--critical); }
+  .st.stopped .dot { background:var(--critical); }
+
+  .card-foot { margin-top:16px; padding-top:14px; font-size:14.5px; color:var(--ink-2); }
+  .card-foot div { margin:3px 0; }
+  .card-foot b { color:var(--ink); font-weight:600; margin-left:2px; }
+
+  /* ===== 模板移植：section / 28天趋势 / roi-ops / 结论 ===== */
+  section { margin:0 0 30px; }
+  .section-head { display:flex; align-items:center; gap:14px; margin:0 0 8px; }
+  .section-num {
+    display:grid; place-items:center; width:30px; height:30px; border-radius:8px;
+    background:#EAF0F2; color:#456B7A; font-size:12px; font-weight:800;
+  }
+  .section-head h2 { font-size:18px; font-weight:600; color:var(--tp-text); margin:0; }
+  .section-desc { color:var(--tp-faint); font-size:12.5px; margin:-4px 0 14px; line-height:1.7; }
+  .chart-grid-3 { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px; }
+  .chart-card {
+    background:var(--card-bg); border:1px solid var(--tp-border); border-radius:10px;
+    padding:14px 16px; box-shadow:0 1px 3px rgba(36,59,73,.045);
+  }
+  .chart-card h5 { font-size:12px; font-weight:600; color:var(--tp-dim); margin:0 0 8px; }
+  .chart-box-28 { height:140px; height:clamp(120px, 15vw, 150px); min-height:120px; position:relative; }
+  .chart-box-28 canvas, .ov-chart-box canvas, .roi-ops-chart-box canvas, .metric-chart-box canvas { display:block; width:100% !important; }
+  .ov-chart-box { height:220px; position:relative; }
+  .chart-box-14 { height:150px; }
+  .roi-ops-card {
+    display:grid; grid-template-columns:1.6fr 1fr; gap:0; margin-bottom:20px;
+    background:var(--card-bg); border:1px solid var(--tp-border); border-radius:10px;
+    overflow:hidden; box-shadow:0 1px 3px rgba(36,59,73,.045);
+  }
+  .roi-ops-chart { padding:18px 20px; border-right:1px solid var(--tp-border); }
+  .roi-ops-chart h5 { font-size:12px; font-weight:600; color:var(--tp-dim); margin:0 0 4px; }
+  .roi-ops-chart .meta-line { font-size:11px; color:var(--tp-faint); margin:0 0 10px; }
+  .roi-ops-chart-box { height:264px; }
+  .roi-ops-panel { padding:18px 18px; display:flex; flex-direction:column; min-width:0; background:var(--tp-surface-2); }
+  .roi-ops-panel h5 { font-size:12px; font-weight:600; color:var(--tp-dim); margin:0 0 12px; }
+  .roi-ops-list { display:flex; flex-direction:column; gap:8px; max-height:264px; overflow-y:auto; padding-right:2px; }
+  .op-entry {
+    display:flex; gap:10px; padding:9px 10px; border-radius:8px;
+    background:var(--card-bg); border:1px solid var(--tp-border);
+  }
+  .op-entry-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; margin-top:5px; }
+  .op-entry-body { min-width:0; flex:1; }
+  .op-entry-top { display:flex; align-items:baseline; gap:8px; margin-bottom:3px; }
+  .op-entry-date { font-family:var(--mono); font-size:11px; font-weight:700; color:var(--tp-text); }
+  .op-entry-type { font-size:10px; font-weight:600; }
+  .op-entry-note { font-size:11.5px; color:var(--tp-dim); line-height:1.5; word-break:break-all; }
+  .concl-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .concl-card {
+    background:var(--card-bg); border:1px solid var(--tp-border); border-radius:10px;
+    padding:20px 22px; box-shadow:0 1px 3px rgba(36,59,73,.045);
+  }
+  .concl-num { font-family:var(--mono); font-size:11px; color:var(--tp-faint); margin-bottom:8px; }
+  .concl-card h4 { font-size:14px; font-weight:600; margin:0 0 10px; color:var(--tp-text); }
+  .concl-card p { font-size:13px; color:var(--tp-dim); line-height:1.65; margin:0; }
+  .cl-list { display:flex; flex-direction:column; gap:10px; }
+  .cl-item { display:flex; gap:12px; padding:12px 14px; border:1px solid var(--tp-border); border-radius:10px; background:#fff; }
+  .cl-num { flex:0 0 auto; width:22px; height:22px; display:grid; place-items:center; border-radius:6px; background:#EAF0F2; color:#456B7A; font-size:11px; font-weight:800; margin-top:1px; }
+  .cl-item .cl-body b { color:var(--tp-text); font-size:13px; display:block; margin-bottom:4px; }
+  .cl-item .cl-body p { color:var(--tp-dim); font-size:12.5px; line-height:1.7; margin:0; }
+
+  /* ===== 投放表现 Performance（pill 指标卡 + 前双周/当前双周曲线） ===== */
+  .perf-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:14px; }
+  .perf-head h2 { font-size:15.5px; margin:0; font-weight:600; }
+  .perf-head .meta { font-size:12px; color:var(--ink-3); }
+  .metric-tabs { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:16px; }
+  .metric-tab {
+    background:var(--tp-surface-2); border:1px solid var(--tp-border); color:var(--tp-dim);
+    font-size:12.5px; font-weight:500;
+    padding:9px 8px; text-align:center; border-radius:20px; cursor:pointer; transition:all .15s ease;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .metric-tab:hover { border-color:var(--tp-faint); color:var(--tp-text); }
+  .metric-tab.active { background:var(--tp-text); color:#FFFFFF; border-color:var(--tp-text); }
+  .metric-chart-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .metric-chart-legend { display:flex; gap:16px; font-size:11.5px; color:var(--tp-dim); }
+  .metric-legend-item { display:flex; align-items:center; gap:6px; }
+  .metric-legend-swatch { width:14px; height:2px; border-radius:2px; }
+  .metric-chart-box { height:290px; }
+  .tabs-6 { grid-template-columns:repeat(6,1fr); }
+
+  .note-line { font-size:12px; color:var(--ink-3); margin-top:10px; line-height:1.55; }
+  .foot { font-size:12px; color:var(--ink-3); line-height:1.7; margin:6px 4px 0; }
+  .foot a { color:var(--ink-3); word-break:break-all; }
+  .foot .k { color:#8b8b8b; }
+  @media (max-width:980px){
+    .chart-grid-3{grid-template-columns:repeat(2,1fr);}
+    .roi-ops-card{grid-template-columns:1fr;}
+    .roi-ops-chart{border-right:none;border-bottom:1px solid var(--tp-border);}
+    .concl-grid{grid-template-columns:1fr;}
+  }
+  @media (max-width:640px){
+    .chart-grid-3{grid-template-columns:1fr;}
+  }
+
+  /* ===== 模板移植：侧边栏 / tab / 总览 hero ===== */
+  .layout{ display:flex; }
   .sidebar{
-    position:fixed; top:0; left:0; height:100vh; width:var(--sidebar-w);
-    background:var(--surface); border-right:1px solid var(--border);
+    position:fixed; top:0; left:0; height:100vh; width:260px;
+    background:#243B49; border-right:1px solid rgba(255,255,255,.08);
     display:flex; flex-direction:column; padding:22px 16px;
     transition:width .22s ease, padding .22s ease; z-index:100; overflow-y:auto; overflow-x:hidden;
+    box-shadow:8px 0 28px rgba(36,59,73,.08);
   }
-  .sidebar.collapsed{ width:var(--sidebar-w-collapsed); padding:22px 10px; }
+  .sidebar.collapsed{ width:60px; padding:22px 10px; }
   .sidebar-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
   .sidebar-brand{ display:flex; align-items:center; gap:9px; overflow:hidden; white-space:nowrap; }
-  .sidebar-brand .dot{width:8px;height:8px;border-radius:50%;background:var(--unity); flex:0 0 auto;}
-  .sidebar-brand-text{font-size:13px; font-weight:700; opacity:1; transition:opacity .15s ease;}
+  .sidebar-brand .dot{width:8px;height:8px;border-radius:50%;background:#B9945A; flex:0 0 auto;}
+  .sidebar-brand-text{font-size:13px; font-weight:700; color:#EAF0F2; opacity:1; transition:opacity .15s ease;}
   .sidebar.collapsed .sidebar-brand-text{ opacity:0; width:0; }
   .collapse-btn{
-    width:28px; height:28px; border-radius:7px; border:1px solid var(--border); background:var(--surface-2);
-    color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:7px; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.09);
+    color:#EAF0F2; cursor:pointer; display:flex; align-items:center; justify-content:center;
     flex:0 0 auto; transition:transform .22s ease;
   }
-  .collapse-btn:hover{ color:var(--text); border-color:var(--text-dim); }
+  .collapse-btn:hover{ color:#fff; border-color:#fff; }
   .sidebar.collapsed .collapse-btn{ transform:rotate(180deg); }
-
   .toc{ display:flex; flex-direction:column; gap:2px; }
   .toc-group{ margin-bottom:4px; }
   .toc-parent{
     display:flex; align-items:center; gap:8px; width:100%; background:transparent; border:none;
-    color:var(--text); font-family:'IBM Plex Sans SC','IBM Plex Sans',sans-serif; font-size:13.5px; font-weight:600;
+    color:#EAF0F2; font-size:13.5px; font-weight:600;
     padding:9px 8px; border-radius:8px; cursor:pointer; text-align:left; white-space:nowrap; overflow:hidden;
     transition:background .15s ease;
   }
-  .toc-parent:hover{ background:var(--surface-2); }
-  .toc-parent.active-pkg{ background:var(--surface-2); }
+  .toc-parent:hover{ background:rgba(255,255,255,.09); }
+  .toc-parent.active-pkg{ background:rgba(255,255,255,.09); color:#fff; }
   .toc-parent .toc-dot{ width:7px;height:7px;border-radius:50%; flex:0 0 auto; }
   .toc-parent .toc-label{ flex:1; opacity:1; transition:opacity .15s ease; }
   .sidebar.collapsed .toc-parent .toc-label, .sidebar.collapsed .toc-parent .chev{ opacity:0; width:0; }
-  .toc-parent .chev{ transition:transform .18s ease; color:var(--text-faint); flex:0 0 auto; }
+  .toc-parent .chev{ transition:transform .18s ease; color:#8A999F; flex:0 0 auto; }
   .toc-parent.expanded .chev{ transform:rotate(90deg); }
   .toc-children{ max-height:0; overflow:hidden; transition:max-height .22s ease; padding-left:24px; }
-  .toc-children.open{ max-height:300px; }
+  .toc-children.open{ max-height:520px; }
   .toc-child{
-    display:block; width:100%; background:transparent; border:none; color:var(--text-dim);
-    font-family:'IBM Plex Sans SC','IBM Plex Sans',sans-serif; font-size:12.5px; font-weight:500;
+    display:block; width:100%; background:transparent; border:none; color:#B9C7CE;
+    font-size:12.5px; font-weight:500;
     padding:7px 8px; border-radius:7px; cursor:pointer; text-align:left; white-space:nowrap; overflow:hidden;
     transition:all .15s ease; margin-top:1px;
   }
-  .toc-child:hover{ background:var(--surface-2); color:var(--text); }
-  .toc-child.active{ color:var(--text); font-weight:600; }
+  .toc-child:hover{ background:rgba(255,255,255,.09); color:#fff; }
+  .toc-child.active{ background:rgba(185,148,90,.16); color:#fff; }
   .sidebar.collapsed .toc-children{ display:none; }
   .toc-leaf{
     display:flex; align-items:center; gap:8px; width:100%; background:transparent; border:none;
-    color:var(--text); font-family:'IBM Plex Sans SC','IBM Plex Sans',sans-serif; font-size:13.5px; font-weight:600;
+    color:#EAF0F2; font-size:13.5px; font-weight:600;
     padding:9px 8px; border-radius:8px; cursor:pointer; text-align:left; white-space:nowrap; overflow:hidden;
     transition:background .15s ease; margin-bottom:8px;
   }
-  .toc-leaf:hover{ background:var(--surface-2); }
-  .toc-leaf.active{ background:var(--surface-2); }
-  .toc-leaf .toc-dot{ width:7px;height:7px;border-radius:50%; background:var(--unity); flex:0 0 auto; }
-  .toc-leaf .toc-label{ opacity:1; transition:opacity .15s ease; }
+  .toc-leaf:hover{ background:rgba(255,255,255,.09); }
+  .toc-leaf.active{ background:rgba(255,255,255,.09); }
+  .toc-leaf .toc-dot{ width:7px;height:7px;border-radius:50%; background:#B9945A; flex:0 0 auto; }
   .sidebar.collapsed .toc-leaf .toc-label{ opacity:0; width:0; }
-
-  .sidebar-foot{ margin-top:auto; font-size:10px; color:var(--text-faint); font-family:'IBM Plex Mono',monospace;
+  .sidebar-meta{ padding:8px 8px 4px; border-top:1px dashed rgba(255,255,255,.15); margin-top:4px; }
+  .sm-row{ display:flex; justify-content:space-between; gap:8px; font-size:11px; padding:4px 0; }
+  .sm-k{ color:#8A999F; flex:0 0 auto; }
+  .sm-v{ color:#D8E2E7; text-align:right; font-weight:500; }
+  .sm-series-label{ font-size:10px; color:#8A999F; text-transform:uppercase; letter-spacing:.03em; margin:8px 0 4px; }
+  .sm-series{ display:flex; align-items:center; gap:5px; padding:3px 0; }
+  .sm-tag{ font-size:9px; font-weight:700; padding:1px 5px; border-radius:5px; flex:0 0 auto; background:rgba(111,143,155,.22); color:#A9C2CD; }
+  .sm-series-name{ font-family:var(--mono); font-size:9px; color:#B9C7CE; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sm-status{ font-size:9.5px; color:#718C7B; flex:0 0 auto; }
+  .sidebar-foot{ margin-top:auto; font-size:10px; color:#8A999F; font-family:var(--mono);
     white-space:nowrap; overflow:hidden; opacity:1; transition:opacity .15s ease; line-height:1.7; padding-top:16px; }
   .sidebar.collapsed .sidebar-foot{ opacity:0; }
-
-  .main{ flex:1; margin-left:var(--sidebar-w); transition:margin-left .22s ease; min-width:0; }
-  .main.collapsed{ margin-left:var(--sidebar-w-collapsed); }
-  .page{max-width:1180px; margin:0 auto; padding:44px 32px 100px;}
-
-  .hero{padding:8px 0 36px;}
-  .eyebrow{font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.14em; color:var(--text-dim);
-    text-transform:uppercase; margin-bottom:16px; display:flex; align-items:center; gap:10px;}
-  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--pos);}
-  .hero h1{font-size:clamp(26px,3.6vw,36px); font-weight:700; letter-spacing:-0.01em; margin-bottom:12px; color:var(--text);}
-  .hero p.lead{color:var(--text-dim); font-size:14.5px; max-width:720px;}
-
-  .tab-content{display:none;} .tab-content.active{display:block;}
-  section{margin-bottom:56px; scroll-margin-top:24px;}
-  .section-head{display:flex; align-items:baseline; gap:14px; margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid var(--border);}
-  .section-num{font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--text-faint);}
-  .section-head h2{font-size:19px; font-weight:600;}
-  .section-desc{color:var(--text-dim); font-size:13px; margin:-8px 0 20px;}
-  .sub-h{font-size:14.5px; font-weight:600; color:var(--text); margin:30px 0 6px; padding-top:6px; scroll-margin-top:24px;}
-
-  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
-  .card{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px 22px; box-shadow:0 1px 2px rgba(41,39,34,0.03);}
-  .card h3{font-size:14px; font-weight:600; margin-bottom:14px;}
-
-  table{width:100%; border-collapse:collapse; font-size:12.5px;}
-  th{text-align:left; font-weight:500; color:var(--text-dim); font-size:11px; text-transform:uppercase;
-    letter-spacing:.04em; padding:7px 9px; border-bottom:1px solid var(--border);}
-  td{padding:8px 9px; border-bottom:1px solid rgba(41,39,34,0.06); font-family:'IBM Plex Mono',monospace; font-size:12.5px;}
-  td.label-cell{font-family:'IBM Plex Sans SC','IBM Plex Sans',sans-serif; color:var(--text);}
-  tr:last-child td{border-bottom:none;}
-  .num{text-align:right;} .pos{color:var(--pos);} .neg{color:var(--neg);} .neutral{color:var(--text-dim);}
-  .tag{font-size:11px; padding:3px 9px; border-radius:12px; border:1px solid; font-family:'IBM Plex Sans SC',sans-serif; white-space:nowrap;}
-
-  .pkg-card{ background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--pkg-accent);
-    border-radius:10px; padding:20px 22px; flex:1; box-shadow:0 1px 2px rgba(41,39,34,0.03); min-width:0; }
-  .pkg-card-head{display:flex; align-items:center; gap:9px; margin-bottom:14px;}
-  .pkg-dot{width:9px;height:9px;border-radius:50%; background:var(--pkg-accent);}
-  .pkg-dot.lg{width:12px;height:12px;}
-  .pkg-card h3{font-size:16px; font-weight:700; color:var(--pkg-accent);}
-  .meta-row{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid rgba(41,39,34,0.05); font-size:13px; gap:12px;}
-  .meta-k{color:var(--text-faint); flex:0 0 auto;} .meta-v{color:var(--text); font-weight:500; text-align:right;}
-  .cards-row{display:flex; gap:16px; margin-bottom:40px; align-items:stretch;}
-  .series-list-label{font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.04em; margin:14px 0 8px;}
-  .series-list{display:flex; flex-direction:column; gap:6px;}
-  .series-item{display:flex; align-items:center; gap:8px; font-size:12px; padding:6px 0;}
-  .series-ch-tag{font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:6px; flex:0 0 auto;}
-  .series-name{color:var(--text-dim); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:'IBM Plex Mono',monospace; font-size:10.5px;}
-  .series-status{color:var(--text-faint); font-size:11px; flex:0 0 auto;}
-
-  .pkg-hero{ background:var(--surface); border:1px solid var(--border); border-radius:12px;
-    padding:26px 28px; margin-bottom:44px; border-top:3px solid var(--pkg-accent); box-shadow:0 1px 2px rgba(41,39,34,0.03); scroll-margin-top:24px; }
-  .pkg-hero-title{display:flex; align-items:baseline; gap:12px; margin-bottom:12px;}
-  .pkg-hero-title h2{font-size:22px; font-weight:700;}
-  .pkg-sub{font-size:12.5px; color:var(--text-faint);}
-  .pkg-summary{font-size:13.5px; color:var(--text-dim); line-height:1.7;}
-  .callout{ margin-top:16px; background:var(--surface-2); border-left:3px solid var(--warn); border-radius:8px;
-    padding:12px 16px; font-size:12.5px; color:var(--text-dim); line-height:1.6; }
-
-  .gauge-card{ margin-top:18px; }
-  .gauge-label{font-size:11.5px; color:var(--text-faint); margin-bottom:8px;}
-  .gauge-track{ position:relative; height:10px; background:var(--surface-2); border-radius:6px; overflow:visible; }
-  .gauge-fill{ position:absolute; top:0; left:0; bottom:0; border-radius:6px; transition:width .3s ease; }
-  .gauge-target-line{ position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--text); opacity:.5; }
-  .gauge-nums{ display:flex; align-items:baseline; gap:14px; margin-top:8px; }
-  .gauge-val{ font-family:'IBM Plex Mono',monospace; font-size:20px; font-weight:700; }
-  .gauge-vs{ font-size:12px; color:var(--text-faint); }
-
-  .chart-grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
-  .chart-card{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; box-shadow:0 1px 2px rgba(41,39,34,0.03);}
-  .chart-card h5{font-size:12px; font-weight:600; color:var(--text-dim); margin-bottom:8px;}
-  .chart-box-28{height:130px;} .chart-box-14{height:150px;}
-
-  .concl-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
-  .concl-card{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px 22px; box-shadow:0 1px 2px rgba(41,39,34,0.03);}
-  .concl-num{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-faint); margin-bottom:8px;}
-  .concl-card h4{font-size:14px; font-weight:600; margin-bottom:10px;}
-  .concl-card p{font-size:13px; color:var(--text-dim); line-height:1.65;}
-
-  footer{border-top:1px solid var(--border); padding-top:22px; color:var(--text-faint); font-size:12px;
-    display:flex; justify-content:space-between;}
-
-  @media (max-width:1000px){
-    .chart-grid-3{grid-template-columns:repeat(2,1fr);}
-    .cards-row{flex-direction:column;}
-    .grid-2, .concl-grid{grid-template-columns:1fr;}
+  .main{ flex:1; margin-left:260px; transition:margin-left .22s ease; min-width:0; }
+  .main.collapsed{ margin-left:60px; }
+  .page{ max-width:1280px; width:100%; margin:0 auto; padding:36px clamp(20px,3vw,48px) 70px; }
+  .tab-content{ display:block; } .tab-zlblacke-sep{ margin-top:34px; }
+  .hero{
+    position:relative; padding:30px 36px 28px; margin:10px 0 26px;
+    border:1px solid var(--tp-border); border-radius:14px;
+    background:linear-gradient(135deg,#fff 0%,#F7FAFA 100%);
+    box-shadow:0 12px 34px rgba(36,59,73,.06); overflow:hidden;
   }
-  @media (max-width:640px){
-    .chart-grid-3{grid-template-columns:1fr;}
-    .sidebar{width:60px; padding:16px 8px;}
-    .sidebar-brand-text, .toc-parent .toc-label, .toc-leaf .toc-label, .toc-parent .chev, .sidebar-foot{display:none;}
-    .toc-children{display:none;}
-    .main{margin-left:60px;}
-    .page{padding:36px 18px 80px;}
+  .hero:after{ content:""; position:absolute; left:0; top:0; bottom:0; width:5px; background:#B9945A; }
+  .eyebrow{ font-family:var(--mono); font-size:11.5px; letter-spacing:.12em; color:#456B7A; font-weight:700;
+    text-transform:uppercase; margin-bottom:12px; display:flex; align-items:center; gap:10px; }
+  .eyebrow .dot{ width:6px;height:6px;border-radius:50%;background:#B9945A; }
+  .hero h1{ font-size:30px; font-weight:700; letter-spacing:-.02em; margin:0 0 10px; color:var(--tp-text); }
+  .hero p.lead{ color:var(--tp-dim); font-size:14.5px; line-height:1.8; margin:0; }
+  .intro-mini{ margin-top:16px; padding-top:14px; border-top:1px solid var(--tp-border); display:flex; flex-direction:column; gap:6px; }
+  .intro-mini-item{ font-size:13px; color:var(--tp-dim); display:flex; align-items:baseline; gap:8px; }
+  .intro-mini-item b{ color:var(--tp-text); font-weight:600; }
+  .intro-dot{ width:7px; height:7px; border-radius:50%; flex:0 0 auto; position:relative; top:1px; background:#315C72; }
+  .callout{ margin-top:16px; background:#EDF3F3; border-left:3px solid #B9945A; border-radius:8px;
+    padding:12px 16px; font-size:12.5px; color:var(--tp-dim); line-height:1.7; }
+  table.ovtable{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.ovtable th{ text-align:left; font-weight:500; color:var(--tp-dim); font-size:11px; text-transform:uppercase;
+    letter-spacing:.04em; padding:8px 10px; border-bottom:1px solid var(--tp-border); }
+  table.ovtable td{ padding:9px 10px; border-bottom:1px solid rgba(36,59,73,.065); font-family:var(--mono); font-size:13.5px; }
+  table.ovtable td.label-cell{ font-family:inherit; color:var(--tp-text); }
+  table.ovtable tr:last-child td{ border-bottom:none; }
+  table.ovtable .num{ text-align:right; }
+  table.ovtable .pos{ color:#718C7B; } table.ovtable .neg{ color:#B56F70; } table.ovtable .neutral{ color:var(--tp-dim); }
+  .ov-chart-box{ height:220px; }
+  section.ov { margin:0 0 26px; }
+  @media (max-width:800px){
+    .sidebar{ width:60px; padding:16px 8px; }
+    .sidebar-brand-text, .toc-parent .toc-label, .toc-leaf .toc-label, .toc-parent .chev, .sidebar-foot{ display:none; }
+    .toc-children{ display:none; }
+    .main{ margin-left:60px; }
   }
+
+  .rule-bar{
+    display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px;
+    background:#EDF3F3; border:1px solid #D7E3E5; border-left:3px solid #668F7A;
+    border-radius:8px; padding:10px 14px; font-size:13px; color:var(--tp-dim);
+    margin:0 0 14px;
+  }
+  .rule-bar b{ color:var(--tp-text); font-size:15px; }
+  .rule-title{ font-size:11px; font-weight:700; letter-spacing:.06em; color:#456B7A; padding:2px 8px; border-radius:5px; background:#DFEBEB; }
+  .rule-status{ font-size:12px; font-weight:600; padding:2px 8px; border-radius:5px; }
+  .rule-status.ok{ color:#4E8264; background:#E3F0E5; }
+  .rule-status.no{ color:#B56F70; background:#F7E6E6; }
+
+  .plan-list ul{ margin:6px 0 0; padding-left:18px; }
+  .plan-list ul li{ font-size:12.5px; color:var(--tp-dim); line-height:1.7; margin:5px 0; }
+  .plan-list ul li b{ color:var(--tp-text); }
+  .plan-list ul li::marker{ color:#456B7A; }
+  .rule-ul{ margin:0; padding-left:20px; }
+  .rule-ul li{ margin:12px 0; }
+  .rule-ul li b{ color:var(--tp-text); font-size:13px; }
+  .rule-ul li p{ margin:2px 0 0; color:var(--tp-dim); font-size:12.5px; line-height:1.7; }
+  .rule-ul li::marker{ color:#456B7A; }
 </style>
 </head>
 <body>
@@ -193,458 +307,709 @@
       </button>
     </div>
     <nav class="toc" id="tocNav">
-      <button class="toc-leaf active" data-tab="overview" data-target=""><span class="toc-dot" style="background:#8A8577"></span><span class="toc-label">总览</span></button>
-
+      <button class="toc-leaf active" data-tab="overview"><span class="toc-dot"></span><span class="toc-label">总览</span></button>
       <div class="toc-group">
-        <button class="toc-parent" data-tab="sdypoolcharm"><span class="toc-dot" style="background:#4C63C9"></span><span class="toc-label">sdypoolcharm</span>
+        <button class="toc-parent" data-tab="zlblacke"><span class="toc-dot" style="background:#315C72"></span><span class="toc-label">zlblacke</span>
           <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
         <div class="toc-children">
-          <button class="toc-child" data-tab="sdypoolcharm" data-target="sdy-trend">包整体趋势</button>
-          <button class="toc-child" data-tab="sdypoolcharm" data-target="sdy-ops">投放操作复盘</button>
-          <button class="toc-child" data-tab="sdypoolcharm" data-target="sdy-concl">优化结论</button>
-        </div>
-      </div>
-
-      <div class="toc-group">
-        <button class="toc-parent" data-tab="zlblacke"><span class="toc-dot" style="background:#C15561"></span><span class="toc-label">zlblacke</span>
-          <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
-        <div class="toc-children">
+          <div class="sidebar-meta">
+            <div class="sm-row"><span class="sm-k">玩法</span><span class="sm-v">21点</span></div>
+            <div class="sm-row"><span class="sm-k">渠道</span><span class="sm-v">Unity</span></div>
+            <div class="sm-row"><span class="sm-k">状态</span><span class="sm-v">单系列稳定投放中</span></div>
+            <div class="sm-row"><span class="sm-k">目标</span><span class="sm-v">D7 ROI 达 90%</span></div>
+            <div class="sm-series-label">系列（1）</div>
+            <div class="sm-series">
+              <span class="sm-tag">Unity</span>
+              <span class="sm-series-name" title="zlblacke_HMF_AND_US_260409_Unity_D7ROAS">HMF_AND_US_260409_Unity_D7ROAS</span>
+              <span class="sm-status">正在投放</span>
+            </div>
+          </div>
           <button class="toc-child" data-tab="zlblacke" data-target="zlb-trend">包整体趋势</button>
           <button class="toc-child" data-tab="zlblacke" data-target="zlb-curr">当前双周数据</button>
           <button class="toc-child" data-tab="zlblacke" data-target="zlb-concl">优化结论</button>
         </div>
       </div>
     </nav>
-    <div class="sidebar-foot">BIWEEKLY<br>REPORT<br>7/24 – 8/20</div>
+      <div class="toc-group">
+        <button class="toc-parent" data-tab="jayomergecoin" data-target="pkg-jayomergecoin"><span class="toc-dot" style="background:#8A6E4B"></span><span class="toc-label">jayomergecoin</span>
+          <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+        <div class="toc-children">
+          <div class="sidebar-meta">
+            <div class="sm-row"><span class="sm-k">状态</span><span class="sm-v">Unity · 3 在投 / 1 停投</span></div>
+            <div class="sm-row"><span class="sm-k">系列</span><span class="sm-v">4（业务侧提供）</span></div>
+            <div class="sm-row"><span class="sm-k">近4天消耗</span><span class="sm-v">583</span></div>
+            <div class="sm-row"><span class="sm-k">D0 ROI</span><span class="sm-v">59.2%</span></div>
+          </div>
+        </div>
+      </div>
+      <button class="toc-leaf" data-tab="plan" data-target="zlb-plan"><span class="toc-dot"></span><span class="toc-label">下阶段计划</span></button>
+    <div class="sidebar-foot">BIWEEKLY<br>REPORT<br>8/21 – 9/3</div>
   </aside>
 
   <main class="main" id="mainArea">
     <div class="page">
 
+      <!-- ============ 总览 ============ -->
       <div class="tab-content active" id="tab-overview">
         <div class="hero">
           <div class="eyebrow"><span class="dot"></span>第一部分 · 总览</div>
           <h1>本双周整体怎么样</h1>
-          <p class="lead">两个投放包（sdypoolcharm、zlblacke）当前双周(8/7-8/20) vs 前双周(7/24-8/6)的核心表现对比。</p>
+          <p class="lead">当前双周（8/21 - 9/3） vs 前双周（8/7 - 8/20）的核心表现对比。zlblacke 当前为单渠道单系列在投。</p>
+          <div class="intro-mini">
+            <div class="intro-mini-item"><span class="intro-dot"></span><b>zlblacke</b>：21点 · 单渠道 Unity 单系列 · 目标 D7 ROI 达 90%</div>
+          </div>
         </div>
 
-        <section>
-          <div class="section-head"><span class="section-num">01</span><h2>两个包基本信息</h2></div>
-          <div class="cards-row">
-    <div class="pkg-card" style="--pkg-accent:#4C63C9">
-      <div class="pkg-card-head"><span class="pkg-dot"></span><h3>sdypoolcharm</h3></div>
-      <div class="meta-row"><span class="meta-k">玩法</span><span class="meta-v">台球</span></div>
-      <div class="meta-row"><span class="meta-k">投放渠道</span><span class="meta-v">Unity / Mintegral</span></div>
-      <div class="meta-row"><span class="meta-k">当前状态</span><span class="meta-v">多系列滚动测试中，部分系列已停投</span></div>
-      <div class="meta-row"><span class="meta-k">投放目标</span><span class="meta-v">D7 ROI 达 90%</span></div>
-      <div class="series-list-label">系列（5）</div>
-      <div class="series-list"><div class="series-item">
-        <span class="series-ch-tag" style="background:#127D8222;color:#127D82">Unity</span>
-        <span class="series-name">sdypoolcharm_HMF_AND_US_260128_Unity_D7ROAS</span>
-        <span class="series-status">8-20 停投</span>
-      </div><div class="series-item">
-        <span class="series-ch-tag" style="background:#127D8222;color:#127D82">Unity</span>
-        <span class="series-name">sdypoolcharm_HMF_AND_US_260529_Unity_D7ROAS</span>
-        <span class="series-status">8-17 停投</span>
-      </div><div class="series-item">
-        <span class="series-ch-tag" style="background:#127D8222;color:#127D82">Unity</span>
-        <span class="series-name">sdypoolcharm_HMF_AND_T1_260128_Unity_D7ROAS</span>
-        <span class="series-status">8-14 停投</span>
-      </div><div class="series-item">
-        <span class="series-ch-tag" style="background:#C1791E22;color:#C1791E">MTG</span>
-        <span class="series-name">sdypoolcharm_LJF_AND_US_260128_MTG_D0ROAS</span>
-        <span class="series-status">8-20 停投</span>
-      </div><div class="series-item">
-        <span class="series-ch-tag" style="background:#C1791E22;color:#C1791E">MTG</span>
-        <span class="series-name">sdypoolcharm_LJF_AND_T1_260225_MTG_D0ROAS</span>
-        <span class="series-status">8-14 停投</span>
-      </div></div>
-    </div>
-    <div class="pkg-card" style="--pkg-accent:#C15561">
-      <div class="pkg-card-head"><span class="pkg-dot"></span><h3>zlblacke</h3></div>
-      <div class="meta-row"><span class="meta-k">玩法</span><span class="meta-v">21点</span></div>
-      <div class="meta-row"><span class="meta-k">投放渠道</span><span class="meta-v">Unity</span></div>
-      <div class="meta-row"><span class="meta-k">当前状态</span><span class="meta-v">单系列稳定投放中</span></div>
-      <div class="meta-row"><span class="meta-k">投放目标</span><span class="meta-v">D7 ROI 达 90%</span></div>
-      <div class="series-list-label">系列（1）</div>
-      <div class="series-list"><div class="series-item">
-        <span class="series-ch-tag" style="background:#127D8222;color:#127D82">Unity</span>
-        <span class="series-name">zlblacke_HMF_AND_US_260409_Unity_D7ROAS</span>
-        <span class="series-status">正在投放</span>
-      </div></div>
-    </div></div>
-        </section>
-
-        <section>
-          <div class="section-head"><span class="section-num">02</span><h2>双周投放表现</h2></div>
+        <section class="ov">
+          <div class="section-head"><span class="section-num">01</span><h2>双周投放表现</h2></div>
           <p class="section-desc">D0 ROI 双周对比（前双周 vs 当前双周，按周内第几天对齐）</p>
-          <div class="grid-2" style="margin-bottom:20px;">
-            <div class="card"><h3 style="color:#4C63C9">sdypoolcharm · D0 ROI 双周对比</h3><div class="chart-box-14" style="height:220px"><canvas id="ov_roi_sdypoolcharm"></canvas></div></div>
-            <div class="card"><h3 style="color:#C15561">zlblacke · D0 ROI 双周对比</h3><div class="chart-box-14" style="height:220px"><canvas id="ov_roi_zlblacke"></canvas></div></div>
+          <div class="rule-bar">
+            <span class="rule-title">达标规则</span>
+            D0 ROI ≥ <b>52%</b>，D7 ROI 即可达标（目标 90%）
+            <span class="rule-status ok">当前双周 53.37% ✔ 达标（达标 <b>8/14</b> 天）</span>
+            <span class="rule-status no">前双周 46.39% ✘ 未达标（达标 <b>1/14</b> 天）</span>
           </div>
-          <p class="section-desc">双周核心指标对比：前双周 → 当前双周 → 变化</p>
-          <div class="grid-2">
-  <div class="card"><h3 style="color:#4C63C9">sdypoolcharm</h3><table><thead><tr><th>指标</th><th class="num">前双周(7/24-8/6)</th><th class="num">当前双周(8/7-8/20)</th><th class="num">绝对变化</th><th class="num">相对变化</th></tr></thead><tbody><tr><td class="label-cell">D0 ROI</td><td class="num">54.9%</td><td class="num">51.0%</td>
-      <td class="num neg">-3.9pp</td><td class="num neg">-7.1%</td></tr><tr><td class="label-cell">D7 ROI（部分为不完整cohort）</td><td class="num">86.2%</td><td class="num">77.9%</td>
-      <td class="num neg">-8.3pp</td><td class="num neg">-9.7%</td></tr><tr><td class="label-cell">消耗(元,周合计)</td><td class="num">13,022</td><td class="num">9,829</td>
-      <td class="num neutral">-3,193</td><td class="num neutral">-24.5%</td></tr><tr><td class="label-cell">CPI(元)</td><td class="num">1.42</td><td class="num">1.37</td>
-      <td class="num pos">-0.05</td><td class="num pos">-3.5%</td></tr><tr><td class="label-cell">广告eCPM</td><td class="num">61.00</td><td class="num">60.58</td>
-      <td class="num neg">-0.42</td><td class="num neg">-0.7%</td></tr><tr><td class="label-cell">D1留存</td><td class="num">32.7%</td><td class="num">30.6%</td>
-      <td class="num neg">-2.1pp</td><td class="num neg">-6.3%</td></tr><tr><td class="label-cell">人均播放次数(24h)</td><td class="num">13.57</td><td class="num">11.46</td>
-      <td class="num neg">-2.10</td><td class="num neg">-15.5%</td></tr></tbody></table></div>
-  <div class="card"><h3 style="color:#C15561">zlblacke</h3><table><thead><tr><th>指标</th><th class="num">前双周(7/24-8/6)</th><th class="num">当前双周(8/7-8/20)</th><th class="num">绝对变化</th><th class="num">相对变化</th></tr></thead><tbody><tr><td class="label-cell">D0 ROI</td><td class="num">62.8%</td><td class="num">55.2%</td>
-      <td class="num neg">-7.6pp</td><td class="num neg">-12.1%</td></tr><tr><td class="label-cell">D7 ROI（部分为不完整cohort）</td><td class="num">93.1%</td><td class="num">84.5%</td>
-      <td class="num neg">-8.6pp</td><td class="num neg">-9.3%</td></tr><tr><td class="label-cell">消耗(元,周合计)</td><td class="num">14,374</td><td class="num">17,241</td>
-      <td class="num neutral">+2,867</td><td class="num neutral">+19.9%</td></tr><tr><td class="label-cell">CPI(元)</td><td class="num">2.25</td><td class="num">2.57</td>
-      <td class="num neg">+0.33</td><td class="num neg">+14.6%</td></tr><tr><td class="label-cell">广告eCPM</td><td class="num">89.56</td><td class="num">97.83</td>
-      <td class="num pos">+8.28</td><td class="num pos">+9.2%</td></tr><tr><td class="label-cell">D1留存</td><td class="num">32.0%</td><td class="num">31.4%</td>
-      <td class="num neg">-0.5pp</td><td class="num neg">-1.6%</td></tr><tr><td class="label-cell">人均播放次数(24h)</td><td class="num">16.46</td><td class="num">15.28</td>
-      <td class="num neg">-1.18</td><td class="num neg">-7.2%</td></tr></tbody></table></div>
-</div>
+          <div class="card" style="max-width:640px; padding:20px 22px;">
+            <h3 style="font-size:13.5px;font-weight:600;color:#315C72;margin:0 0 10px;">zlblacke · D0 ROI 双周对比</h3>
+            <div class="ov-chart-box"><canvas id="ov_roi"></canvas></div>
+          </div>
+          <div class="card" style="margin-top:16px; padding:20px 22px;">
+            <h3 style="font-size:13.5px;font-weight:600;color:#315C72;margin:0 0 10px;">包整体趋势（连续28天，8/7 - 9/3）· D0 ROI</h3>
+            <div class="chart-box-28" style="height:180px"><canvas id="ov_c28_roi"></canvas></div>
+          </div>
+          <p class="section-desc" style="margin-top:18px;">双周核心指标对比：前双周 → 当前双周 → 变化</p>
+          <div class="card" style="padding:20px 22px;">
+            <h3 style="font-size:13.5px;font-weight:600;color:#315C72;margin:0 0 10px;">zlblacke</h3>
+            <table class="ovtable">
+              <thead><tr><th>指标</th><th class="num">前双周(8/7-8/20)</th><th class="num">当前双周(8/21-9/3)</th><th class="num">绝对变化</th><th class="num">相对变化</th></tr></thead>
+              <tbody id="ov-tbody"></tbody>
+            </table>
+          </div>
         </section>
 
-        <section>
-          <div class="section-head"><span class="section-num">03</span><h2>双周表现总结</h2></div>
-          <div class="grid-2">
-            <div class="card" style="border-left:3px solid #4C63C9"><h3 style="color:#4C63C9">sdypoolcharm</h3><p style="font-size:13.5px;color:var(--text-dim);line-height:1.7">双周表现：本双周（8/7-8/20）整体消耗较前双周下降 24.5%（13,022 → 9,829 元）。D0 ROI 由 54.9% 降至 51.0%（-3.9pp），D7 ROI 由 86.2% 降至 77.9%（当前双周D7数据仅覆盖8/7-8/14共8天完整cohort，供参考）。CPI 基本持平略降 3.5%，但留存率D1（-6.3%）与人均播放次数（-15.5%）同步下滑，反映消耗收缩的同时用户质量也有所减弱。渠道层面，Mintegral 当前双周 D7 ROI（78.7%）优于 Unity（75.8%），但消耗体量仅为 Unity 的约三分之一（占比 31.5%）。</p></div>
-            <div class="card" style="border-left:3px solid #C15561"><h3 style="color:#C15561">zlblacke</h3><p style="font-size:13.5px;color:var(--text-dim);line-height:1.7">双周表现：本双周（8/7-8/20）整体消耗较前双周提升 19.9%（14,374 → 17,241 元），为主动放量所致。但 D0 ROI 由 62.8% 降至 55.2%（-7.6pp），D7 ROI 由 93.1% 降至 84.5%（同样为部分cohort数据）。CPI 上升 14.6%（2.25→2.57元），eCPM同步上涨9.2%，表明买量成本提高；留存率D1基本持平（-1.6%），人均播放次数下降7.2%。整体呈现"放量但效率下降"的特征。</p></div>
+        <section class="ov">
+          <div class="section-head"><span class="section-num">02</span><h2>双周表现总结</h2></div>
+          <div class="card" style="border-left:3px solid #315C72;">
+            <h3 style="font-size:13.5px;font-weight:600;color:#315C72;margin:0 0 10px;">zlblacke</h3>
+            <p style="font-size:13px;color:var(--tp-dim);line-height:1.75;margin:0;">
+              当前双周（8/21-9/3） vs 前双周（8/7-8/20），广告格式 video + interstitial：<br>
+            消耗 17,260 → 9,995（-42.1%）· D0 ROI 46.39% → 53.37%（+6.98pp，当前双周高于 52% 达标线）· CPI 2.57 → 2.42（-5.9%）· 广告LTV(D0) 1.19 → 1.29（+8.2%）· 广告eCPM(D0) 97.10 → 110.06（+13.3%）· D1 留存 31.36% → 29.20%（-2.2pp）· 人均播放次数(D0) 12.27 → 11.72（-4.5%）。<br>
+           期间操作：8/25 移除 2 个素材包；8/26 Mintegral 系列停投；8/27 出价 US 73→74、预算 800→600；9/1-9/2 新增 3 组素材包（PE1SJ/PE1WH，并转 Exploration）；9/1-9/3 预算 600→800→1000→800。
+            </p>
+            <div class="callout">D0 ROI：当前双周 53.37% ≥ 52% 达标线（D7 ROI 可达标）；前双周 46.39% &lt; 52%。消耗：8/21-8/26 日均 788 → 8/27-9/3 日均 696；9/1-9/3 回升（857/933/739）。</div>
           </div>
         </section>
       </div>
 
-      <div class="tab-content" id="tab-sdypoolcharm">
-<div class="pkg-hero" id="pkg-sdypoolcharm-hero" style="--pkg-accent:#4C63C9">
-  <div class="pkg-hero-title"><span class="pkg-dot lg"></span><h2>sdypoolcharm</h2><span class="pkg-sub">台球 · Unity / Mintegral 双渠道 5 系列</span></div>
-  <p class="pkg-summary">双周表现：本双周（8/7-8/20）整体消耗较前双周下降 24.5%（13,022 → 9,829 元）。D0 ROI 由 54.9% 降至 51.0%（-3.9pp），D7 ROI 由 86.2% 降至 77.9%（当前双周D7数据仅覆盖8/7-8/14共8天完整cohort，供参考）。CPI 基本持平略降 3.5%，但留存率D1（-6.3%）与人均播放次数（-15.5%）同步下滑，反映消耗收缩的同时用户质量也有所减弱。渠道层面，Mintegral 当前双周 D7 ROI（78.7%）优于 Unity（75.8%），但消耗体量仅为 Unity 的约三分之一（占比 31.5%）。</p>
-  <div class="callout">关注点：8/17-8/20 近4天 D0 ROI 回升至 53%-60% 区间，反馈显示较 8/11 上涨约 20.33%，主要驱动为人均播放次数增加，是本双周后段的积极信号，建议持续观察能否延续。</div>
-  <div class="gauge-card">
-      <div class="gauge-label">28天累计 D7 ROI 达成目标进度（目标 90%）</div>
-      <div class="gauge-track"><div class="gauge-fill" style="width:92.2%; background:#4C63C9"></div>
-        <div class="gauge-target-line" style="left:87.0%"></div></div>
-      <div class="gauge-nums"><span class="gauge-val" style="color:#4C63C9">83.0%</span><span class="gauge-vs">当前双周(部分cohort)：77.9%</span></div>
-    </div>
-</div>
-
-<section id="sdy-trend">
-  <div class="section-head"><span class="section-num">01</span><h2>包整体趋势（连续28天，7/24-8/20）</h2></div>
-  <p class="section-desc">前14天(7/24-8/6) = 前双周，后14天(8/7-8/20) = 当前双周；D7 ROI 因需7天完整cohort，8/15后暂无数据（曲线自然中断）。</p>
-  <div class="chart-grid-3"><div class="chart-card"><h5>D0 ROI</h5><div class="chart-box-28"><canvas id="c28_sdypoolcharm_roi24h"></canvas></div></div><div class="chart-card"><h5>D7 ROI</h5><div class="chart-box-28"><canvas id="c28_sdypoolcharm_roi_d7"></canvas></div></div><div class="chart-card"><h5>消耗</h5><div class="chart-box-28"><canvas id="c28_sdypoolcharm_spend"></canvas></div></div><div class="chart-card"><h5>CPI</h5><div class="chart-box-28"><canvas id="c28_sdypoolcharm_cpi"></canvas></div></div><div class="chart-card"><h5>广告eCPM</h5><div class="chart-box-28"><canvas id="c28_sdypoolcharm_ecpm_d0"></canvas></div></div><div class="chart-card"><h5>D1留存</h5><div class="chart-box-28"><canvas id="c28_sdypoolcharm_retention_d1"></canvas></div></div><div class="chart-card"><h5>人均播放次数</h5><div class="chart-box-28"><canvas id="c28_sdypoolcharm_plays_24h"></canvas></div></div></div>
-</section>
-
-<section id="sdy-ops">
-  <div class="section-head"><span class="section-num">02</span><h2>投放操作复盘</h2></div>
-  <h3 class="sub-h">① 当前双周14天整体数据（8/7-8/20）</h3>
-  <p class="section-desc">完整保留当前双周每日数据，观察指标从何时开始变化。</p>
-  <div class="chart-grid-3"><div class="chart-card"><h5>D0 ROI</h5><div class="chart-box-14"><canvas id="c14_sdypoolcharm_roi24h"></canvas></div></div><div class="chart-card"><h5>D7 ROI</h5><div class="chart-box-14"><canvas id="c14_sdypoolcharm_roi_d7"></canvas></div></div><div class="chart-card"><h5>消耗</h5><div class="chart-box-14"><canvas id="c14_sdypoolcharm_spend"></canvas></div></div><div class="chart-card"><h5>CPI</h5><div class="chart-box-14"><canvas id="c14_sdypoolcharm_cpi"></canvas></div></div><div class="chart-card"><h5>广告eCPM</h5><div class="chart-box-14"><canvas id="c14_sdypoolcharm_ecpm_d0"></canvas></div></div><div class="chart-card"><h5>D1留存</h5><div class="chart-box-14"><canvas id="c14_sdypoolcharm_retention_d1"></canvas></div></div><div class="chart-card"><h5>人均播放次数</h5><div class="chart-box-14"><canvas id="c14_sdypoolcharm_plays_24h"></canvas></div></div></div>
-
-  <h3 class="sub-h">② 渠道对比：Unity vs Mintegral（当前双周）</h3>
-  <div class="card"><table><thead><tr><th>渠道</th><th class="num">消耗(元)</th><th class="num">消耗占比</th><th class="num">D0 ROI(加权)</th><th class="num">D7 ROI(均值)</th><th class="num">CPI</th></tr></thead><tbody>
-      <tr><td class="label-cell"><span class="tag" style="color:#127D82;border-color:#127D8244;background:#127D8218">Unity</span></td>
-        <td class="num">6,736</td><td class="num">68.5%</td>
-        <td class="num">45.8%</td><td class="num">75.8%</td><td class="num">1.46</td></tr>
-      <tr><td class="label-cell"><span class="tag" style="color:#C1791E;border-color:#C1791E44;background:#C1791E18">Mintegral</span></td>
-        <td class="num">3,093</td><td class="num">31.5%</td>
-        <td class="num">57.4%</td><td class="num">78.7%</td><td class="num">1.75</td></tr>
-    </tbody></table></div>
-  <div class="chart-grid-3" style="margin-top:14px;"><div class="chart-card"><h5>D0 ROI · Unity vs Mintegral</h5><div class="chart-box-14"><canvas id="cch_sdypoolcharm_roi24h"></canvas></div></div><div class="chart-card"><h5>消耗 · Unity vs Mintegral</h5><div class="chart-box-14"><canvas id="cch_sdypoolcharm_spend"></canvas></div></div><div class="chart-card"><h5>CPI · Unity vs Mintegral</h5><div class="chart-box-14"><canvas id="cch_sdypoolcharm_cpi"></canvas></div></div></div>
-
-  <h3 class="sub-h">③ 系列生命周期（当前双周，标记停投日期）</h3>
-  <p class="section-desc">白色描边放大点标记该系列的停投当日数据点。</p>
-  <div class="card"><table><thead><tr><th>系列</th><th>渠道</th><th>状态</th><th class="num">当前双周投放天数</th><th class="num">当前双周消耗(元)</th><th class="num">消耗加权D0 ROI</th></tr></thead><tbody><tr>
-          <td class="label-cell">sdypoolcharm_HMF_AND_US_260128...</td>
-          <td><span class="tag" style="color:#127D82;border-color:#127D8244;background:#127D8218">Unity</span></td>
-          <td>8-20 停投</td>
-          <td class="num">14/14</td>
-          <td class="num">4,523</td>
-          <td class="num">46.5%</td>
-        </tr><tr>
-          <td class="label-cell">sdypoolcharm_HMF_AND_US_260529...</td>
-          <td><span class="tag" style="color:#127D82;border-color:#127D8244;background:#127D8218">Unity</span></td>
-          <td>8-17 停投</td>
-          <td class="num">12/14</td>
-          <td class="num">1,060</td>
-          <td class="num">47.7%</td>
-        </tr><tr>
-          <td class="label-cell">sdypoolcharm_HMF_AND_T1_260128...</td>
-          <td><span class="tag" style="color:#127D82;border-color:#127D8244;background:#127D8218">Unity</span></td>
-          <td>8-14 停投</td>
-          <td class="num">13/14</td>
-          <td class="num">1,152</td>
-          <td class="num">41.0%</td>
-        </tr><tr>
-          <td class="label-cell">sdypoolcharm_LJF_AND_US_260128...</td>
-          <td><span class="tag" style="color:#C1791E;border-color:#C1791E44;background:#C1791E18">MTG</span></td>
-          <td>8-20 停投</td>
-          <td class="num">14/14</td>
-          <td class="num">2,973</td>
-          <td class="num">57.6%</td>
-        </tr><tr>
-          <td class="label-cell">sdypoolcharm_LJF_AND_T1_260225...</td>
-          <td><span class="tag" style="color:#C1791E;border-color:#C1791E44;background:#C1791E18">MTG</span></td>
-          <td>8-14 停投</td>
-          <td class="num">8/14</td>
-          <td class="num">120</td>
-          <td class="num">50.8%</td>
-        </tr></tbody></table></div>
-  <div class="chart-grid-3" style="margin-top:14px;"><div class="chart-card"><h5>HMF_AND_US_260128</h5><div class="chart-box-14"><canvas id="cs_sdypoolcharm_HMF_AND_US_260128"></canvas></div></div><div class="chart-card"><h5>HMF_AND_US_260529</h5><div class="chart-box-14"><canvas id="cs_sdypoolcharm_HMF_AND_US_260529"></canvas></div></div><div class="chart-card"><h5>HMF_AND_T1_260128</h5><div class="chart-box-14"><canvas id="cs_sdypoolcharm_HMF_AND_T1_260128"></canvas></div></div><div class="chart-card"><h5>LJF_AND_US_260128</h5><div class="chart-box-14"><canvas id="cs_sdypoolcharm_LJF_AND_US_260128"></canvas></div></div><div class="chart-card"><h5>LJF_AND_T1_260225</h5><div class="chart-box-14"><canvas id="cs_sdypoolcharm_LJF_AND_T1_260225"></canvas></div></div></div>
-</section>
-
-<section id="sdy-concl">
-  <div class="section-head"><span class="section-num">03</span><h2>优化结论与经验沉淀</h2></div>
-  <div class="concl-grid">
-      <div class="concl-card"><div class="concl-num">01</div><h4>有效经验</h4><p>Mintegral 渠道当前双周 D7 ROI（78.7%）显著高于 Unity（75.8%），尽管消耗体量小（占比约31%），投放效率更优，具备加大预算测试的空间。</p></div>
-      <div class="concl-card"><div class="concl-num">02</div><h4>本双周发现</h4><p>5个系列中，HMF_AND_US_260128（Unity）与 LJF_AND_US_260128（MTG）持续投放至8/20，是当前双周的主力消耗来源；其余3个系列（HMF_AND_US_260529、HMF_AND_T1_260128、LJF_AND_T1_260225）先后于8/14-8/17停投，系列集中度提升。整体D7 ROI与90%目标仍有约12pp差距（28天累计D7 ROI为82.95%）。</p></div>
-      <div class="concl-card"><div class="concl-num">03</div><h4>下一步</h4><p>建议对Mintegral渠道追加测试预算，验证放量后D7 ROI能否维持在80%以上；对已停投系列做素材/定向复盘，作为后续新系列搭建参考；持续跟踪8/17后ROI回升趋势能否延续，并核实其与人均播放次数提升的关系。</p></div>
-    </div>
-</section>
-</div>
+      <!-- ============ zlblacke ============ -->
       <div class="tab-content" id="tab-zlblacke">
-<div class="pkg-hero" id="pkg-zlblacke-hero" style="--pkg-accent:#C15561">
-  <div class="pkg-hero-title"><span class="pkg-dot lg"></span><h2>zlblacke</h2><span class="pkg-sub">21点 · 单渠道 Unity · 单系列</span></div>
-  <p class="pkg-summary">双周表现：本双周（8/7-8/20）整体消耗较前双周提升 19.9%（14,374 → 17,241 元），为主动放量所致。但 D0 ROI 由 62.8% 降至 55.2%（-7.6pp），D7 ROI 由 93.1% 降至 84.5%（同样为部分cohort数据）。CPI 上升 14.6%（2.25→2.57元），eCPM同步上涨9.2%，表明买量成本提高；留存率D1基本持平（-1.6%），人均播放次数下降7.2%。整体呈现"放量但效率下降"的特征。</p>
-  <div class="callout">关注点：28天累计D7 ROI为90.48%，已达到90%投放目标，但当前双周D7 ROI（部分cohort，84.5%）已低于目标线，是本双周需要重点关注的信号。</div>
-  <div class="gauge-card">
-      <div class="gauge-label">28天累计 D7 ROI 达成目标进度（目标 90%）</div>
-      <div class="gauge-track"><div class="gauge-fill" style="width:100.5%; background:#C15561"></div>
-        <div class="gauge-target-line" style="left:87.0%"></div></div>
-      <div class="gauge-nums"><span class="gauge-val" style="color:#C15561">90.5%</span><span class="gauge-vs">当前双周(部分cohort)：84.5%</span></div>
+        <section id="zlb-head" style="margin:10px 0 26px;">
+          <!-- 卡片：包信息 + 在投渠道系列（仅显示正在投放） -->
+          <div class="card">
+    <h2 class="card-title">zlblacke</h2>
+    <div class="card-meta">玩法：<b>21点</b>　投放目标：<b>D7 ROI 达 90</b>　平台 ROAS 目标：<b>74（US，Unity 竞价 goal）</b></div>
+    <table class="list">
+      <thead>
+        <tr><th style="width:110px">渠道</th><th>系列</th><th style="width:120px">状态</th><th style="width:100px">停投日期</th></tr>
+      </thead>
+      <tbody id="series-tbody"></tbody>
+    </table>
+    <div class="card-foot">
+      <div>系列总数：<span id="cnt-total"></span>
+        <span style="display:inline-block;width:16px"></span>
+        unity：<span id="cnt-unity"></span>
+        <span style="display:inline-block;width:16px"></span>
+        mintegral：<span id="cnt-mtg"></span>
+        <span style="display:inline-block;width:16px"></span>
+        已停投：<span id="cnt-stopped"></span>
+        <span style="display:inline-block;width:16px"></span>
+        正在投放：<span id="cnt-live"></span>
+      </div>
+      <div class="note-line" style="margin-top:8px">口径：仅展示正在投放的系列（已停投系列未列出：Unity WW 06/16 暂停、Unity T3 06/25 暂停、Mintegral US 08/26 暂停）；状态与平台 ROAS 目标来自投放配置状态快照（09-03 12:00），优化师 陈国华。</div>
     </div>
+  </div>
+        </section>
+
+  <!-- 01 包整体趋势（连续 28 天） -->
+  <section id="zlb-trend">
+    <div class="section-head"><span class="section-num">01</span><h2>包整体趋势（连续28天，8/7 - 9/3）</h2></div>
+    <p class="section-desc">前14天(8/7-8/20) = 前双周，后14天(8/21-9/3) = 当前双周；单渠道单系列；广告格式 video + interstitial。数据截至 9/3。</p>
+    <div class="card" style="padding:20px 22px;">
+      <div class="metric-tabs tabs-6" id="metricTabs28">
+        <button class="metric-tab active" data-metric="spend">消耗</button>
+        <button class="metric-tab" data-metric="cpi">CPI</button>
+        <button class="metric-tab" data-metric="ltv">广告LTV(D0)</button>
+        <button class="metric-tab" data-metric="ecpm_d0">广告eCPM</button>
+        <button class="metric-tab" data-metric="retention_d1">D1留存</button>
+        <button class="metric-tab" data-metric="plays_24h">人均播放次数</button>
+      </div>
+      <div class="metric-chart-head">
+        <span></span>
+        <div class="metric-chart-legend">
+          <span class="metric-legend-item"><span class="metric-legend-swatch" style="background:#B5C1C5"></span>前双周（8/7-8/20）</span>
+          <span class="metric-legend-item"><span class="metric-legend-swatch" id="leg28" style="background:#263640"></span>当前双周（8/21-9/3）</span>
+        </div>
+      </div>
+      <div class="metric-chart-box" style="height:290px"><canvas id="metricChart28"></canvas></div>
+    </div>
+  </section>
+
+  <!-- 02 当前双周14天整体数据：D0 ROI + 投放操作记录 + 指标切换 -->
+  <section id="zlb-curr">
+    <div class="section-head"><span class="section-num">02</span><h2>当前双周14天整体数据（8/21 - 9/3）</h2></div>
+    <p class="section-desc">D0 ROI 曲线上白色描边点标记当日有投放操作（颜色区分类型）；右侧为投放操作记录。广告格式：video + interstitial。</p>
+    <div class="roi-ops-card">
+      <div class="roi-ops-chart">
+        <h5>D0 ROI（当前双周，8/21 - 9/3）</h5>
+        <p class="meta-line">当前双周 53.37% · 前双周 46.39%（↑15.0%）</p>
+        <div class="roi-ops-chart-box"><canvas id="c14_roi24h"></canvas></div>
+      </div>
+      <div class="roi-ops-panel">
+        <h5>投放操作记录</h5>
+        <div class="roi-ops-list" id="opsList"></div>
+      </div>
+    </div>
+    <div class="card" style="padding:20px 22px">
+      <div class="perf-head">
+        <span style="font-size:14.5px;font-weight:600;color:var(--tp-text)">投放表现 Performance</span>
+      </div>
+      <div class="metric-tabs" id="metricTabs">
+        <button class="metric-tab active" data-metric="spend">消耗</button>
+        <button class="metric-tab" data-metric="cpi">CPI</button>
+        <button class="metric-tab" data-metric="ecpm_d0">广告eCPM</button>
+        <button class="metric-tab" data-metric="retention_d1">D1留存</button>
+        <button class="metric-tab" data-metric="plays_24h">人均播放次数</button>
+      </div>
+      <div class="metric-chart-box"><canvas id="metricChart"></canvas></div>
+      <div class="note-line" style="margin-top:8px">当前双周（Aug 21 – Sep 3） · D1 留存剔除昨日（09-03） · 广告格式：video + interstitial</div>
+    </div>
+  </section>
+
+  <!-- 03 优化结论与经验沉淀 -->
+  <section id="zlb-concl">
+    <div class="section-head"><span class="section-num">03</span><h2>优化结论与经验沉淀</h2></div>
+        <div class="card" style="padding:20px 22px;">
+      <ul class="rule-ul">
+        <li><b>素材消耗与 CPI 结合判断</b><p>看素材表现时要结合消耗量级判断。以 US 市场为例，消耗增加伴随 CPI 上涨属于正常趋势，需要结合消耗规模和 CPI 变化幅度综合判断素材表现。</p></li>
+        <li><b>素材按整条表现看</b><p>素材只需要看整条素材的表现情况，无需过度区分视频素材和试玩素材，结合消耗、CPI、ROI 等核心指标综合判断素材效果。</p></li>
+        <li><b>D0 ROAS 与 D7 ROAS 选择</b><p>不同产品根据回收周期选择目标，D0 关注短期回收，D7 关注长期价值。选择时需结合产品次留和长期回收能力判断，避免短期表现好但后续无法回收。</p></li>
+        <li><b>红利期包放量判断</b><p>放量前需 ROI 达到 100%，同时关注 CPI 上涨带来的影响。次留通常不建议低于 30%，若用户质量持续较差，即使存在红利期也应谨慎放量。</p></li>
+        <li><b>创建 Campaign 等待素材过审</b><p>创建 Campaign 需等素材过审（pending → approved），避免因素材尚未通过审核影响后续投放。</p></li>
+        <li><b>ROI 连续不达标的收量规则</b><p>如果 ROI 连续 3 天以上不达标需要收量，可以先收预算，或者收预算 + 提 goal。</p></li>
+      </ul>
+    </div>
+  </section>
+
+        </div>
+
+  <section id="pkg-jayomergecoin">
+    <div class="section-head"><span class="section-num">04</span><h2>jayomergecoin</h2></div>
+    <p class="section-desc">Unity 单渠道，4 个系列（3 在投 / 1 停投）；系列信息为业务侧提供，BI 链路未收录系列级记录。应用级数据如下。</p>
+    <div class="card">
+      <h2 class="card-title">jayomergecoin</h2>
+      <div class="card-meta">玩法：<b>未知</b>　渠道：<b>Unity（单渠道）</b>　投放目标：<b>D7 ROI 达 90（参照）</b>　应用类型：<b>IAA 工具类（iaa_tools）</b>　广告格式：<b>video + interstitial</b></div>
+      <table class="list">
+        <thead>
+          <tr><th style="width:110px">渠道</th><th>系列</th><th style="width:120px">状态</th><th style="width:100px">停投日期</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="channel">unity</td><td class="series">jayomergecoin_CGH_AND_US_260828_Unity_D7ROAS</td><td class="status"><span class="st live"><span class="dot"></span>正在投放</span></td><td>–</td></tr>
+          <tr><td class="channel">unity</td><td class="series">jayomergecoin_CGH_AND_T1_260831_Unity_D7ROAS</td><td class="status"><span class="st live"><span class="dot"></span>正在投放</span></td><td>–</td></tr>
+          <tr><td class="channel">unity</td><td class="series">jayomergecoin_CGH_AND_T3_260831_Unity_D7ROAS</td><td class="status"><span class="st live"><span class="dot"></span>正在投放</span></td><td>–</td></tr>
+          <tr><td class="channel">unity</td><td class="series">jayomergecoin_CGH_AND_US_260902_Unity_D0ROAS</td><td class="status"><span class="st stopped"><span class="dot"></span>已停投</span></td><td>–</td></tr>
+        </tbody>
+      </table>
+      <div class="card-foot">
+        <div>系列总数：<b>4</b>　unity：<b>4</b>　mintegral：<b>0</b>　已停投：<b>1</b>　正在投放：<b>3</b></div>
+        <div class="note-line" style="margin-top:8px">T1 系列（T1_260831）在投国家：CA 加拿大、GB 英国、DE 德国、AU 澳大利亚、KR 韩国 · 各国 D7 ROAS 目标 50%（Learning 阶段）。T3 系列（T3_260831）在投国家：BR 巴西（58%）、ID 印度尼西亚（58%）、MX 墨西哥（50%）、PH 菲律宾（50%）、ZA 南非（55%）、TH 泰国（55%）、VN 越南（50%）（D7 ROAS 目标，Learning 阶段）；系列信息由业务侧提供（Unity 后台 Countries and bids 截图），当前 BI 数据链路（配置快照/变更记录/看板系列筛选）未收录该包系列级记录，指标暂不可按系列拆分。应用级事实（8/31-9/3）：消耗 582.79 · D0 ROI 59.18%（≥52% 达标线）· 24h ROI 76.18%。</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <h3 style="font-size:13.5px;font-weight:600;color:#315C72;margin:0 0 14px;">US 系列 Performance（Unity · Aug 31 – Sep 3）</h3>
+      <table class="ovtable">
+        <thead><tr><th>Date</th><th class="num">Impressions</th><th class="num">Installs</th><th class="num">Spend ($)</th><th class="num">CPI ($)</th><th class="num">eCPM ($)</th><th class="num">CVR (%)</th></tr></thead>
+        <tbody>
+          <tr style="background:#fbfbfc;font-weight:600;color:var(--tp-text);"><td class="label-cell">Overall Aug 31 – Sep 3</td><td class="num">3,481</td><td class="num">333</td><td class="num">$383.83</td><td class="num">$1.15</td><td class="num">$110.26</td><td class="num">9.57%</td></tr>
+          <tr><td class="label-cell">Aug 31</td><td class="num">26</td><td class="num">1</td><td class="num">$0.24</td><td class="num">$0.24</td><td class="num">$9.34</td><td class="num">3.85%</td></tr>
+          <tr><td class="label-cell">Sep 1</td><td class="num">485</td><td class="num">43</td><td class="num">$46.98</td><td class="num">$1.09</td><td class="num">$96.86</td><td class="num">8.87%</td></tr>
+          <tr><td class="label-cell">Sep 2</td><td class="num">1,655</td><td class="num">147</td><td class="num">$193.32</td><td class="num">$1.32</td><td class="num">$116.81</td><td class="num">8.88%</td></tr>
+          <tr><td class="label-cell">Sep 3</td><td class="num">1,315</td><td class="num">142</td><td class="num">$143.28</td><td class="num">$1.01</td><td class="num">$108.96</td><td class="num">10.80%</td></tr>
+        </tbody>
+      </table>
+      <p class="section-desc" style="margin-top:8px;">数据来源：Unity Performance CSV（Aug 31 – Sep 3）；口径：CPI=Spend/Installs，eCPM=Spend/Impressions×1000，CVR=Installs/Impressions；本周为新建系列（Learning），无前一周期对比，环比均为新样本（↑100% new）。</p>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <h3 style="font-size:13.5px;font-weight:600;color:#315C72;margin:0 0 14px;">T1 系列 Performance（Unity · Aug 31 – Sep 3，截图原表换算）</h3>
+      <table class="ovtable">
+        <thead><tr><th>Date</th><th class="num">Impressions</th><th class="num">Installs</th><th class="num">Spend ($)</th><th class="num">CPI ($)</th><th class="num">eCPM ($)</th><th class="num">CVR (%)</th></tr></thead>
+        <tbody>
+          <tr style="background:#fbfbfc;font-weight:600;color:var(--tp-text);"><td class="label-cell">Overall Aug 31 – Sep 3</td><td class="num">23,356</td><td class="num">621</td><td class="num">$75.19</td><td class="num">$0.12</td><td class="num">$3.22</td><td class="num">2.66%</td></tr>
+          <tr><td class="label-cell">Aug 31</td><td class="num">4,743</td><td class="num">139</td><td class="num">$18.24</td><td class="num">$0.13</td><td class="num">$3.85</td><td class="num">2.93%</td></tr>
+          <tr><td class="label-cell">Sep 1</td><td class="num">12,267</td><td class="num">263</td><td class="num">$31.72</td><td class="num">$0.12</td><td class="num">$2.59</td><td class="num">2.14%</td></tr>
+          <tr><td class="label-cell">Sep 2</td><td class="num">4,644</td><td class="num">136</td><td class="num">$14.81</td><td class="num">$0.11</td><td class="num">$3.19</td><td class="num">2.93%</td></tr>
+          <tr><td class="label-cell">Sep 3</td><td class="num">1,702</td><td class="num">83</td><td class="num">$10.42</td><td class="num">$0.13</td><td class="num">$6.12</td><td class="num">4.88%</td></tr>
+        </tbody>
+      </table>
+      <p class="section-desc" style="margin-top:8px;">数据来源：Unity Performance CSV（Aug 31 – Sep 3）；口径同 US（CPI=Spend/Installs，eCPM=Spend/Impressions×1000，CVR=Installs/Impressions）；新建系列（Learning），无前一周对比。</p>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <h3 style="font-size:13.5px;font-weight:600;color:#315C72;margin:0 0 14px;">T3 系列 Performance（Unity · Aug 31 – Sep 3）</h3>
+      <table class="ovtable">
+        <thead><tr><th>Date</th><th class="num">Impressions</th><th class="num">Installs</th><th class="num">Spend ($)</th><th class="num">CPI ($)</th><th class="num">eCPM ($)</th><th class="num">CVR (%)</th></tr></thead>
+        <tbody>
+          <tr style="background:#fbfbfc;font-weight:600;color:var(--tp-text);"><td class="label-cell">Overall Aug 31 – Sep 3</td><td class="num">4,052</td><td class="num">180</td><td class="num">$119.28</td><td class="num">$0.66</td><td class="num">$29.44</td><td class="num">4.44%</td></tr>
+          <tr><td class="label-cell">Aug 31</td><td class="num">944</td><td class="num">35</td><td class="num">$11.10</td><td class="num">$0.32</td><td class="num">$11.76</td><td class="num">3.71%</td></tr>
+          <tr><td class="label-cell">Sep 1</td><td class="num">761</td><td class="num">19</td><td class="num">$10.54</td><td class="num">$0.55</td><td class="num">$13.85</td><td class="num">2.50%</td></tr>
+          <tr><td class="label-cell">Sep 2</td><td class="num">943</td><td class="num">32</td><td class="num">$16.92</td><td class="num">$0.53</td><td class="num">$17.94</td><td class="num">3.39%</td></tr>
+          <tr><td class="label-cell">Sep 3</td><td class="num">1,404</td><td class="num">94</td><td class="num">$80.72</td><td class="num">$0.86</td><td class="num">$57.49</td><td class="num">6.70%</td></tr>
+        </tbody>
+      </table>
+      <p class="section-desc" style="margin-top:8px;">数据来源：Unity Performance CSV（Aug 31 – Sep 3）；口径同 US；新建系列（Learning），无前一周对比。</p>
+    </div>
+
+  </section>
+
+  <section id="zlb-plan" class="plan-global">
+    <div class="section-head"><span class="section-num">05</span><h2>下阶段计划</h2></div>
+    <p class="section-desc">独立于具体包的个人阶段计划 · 2026 年 9 月。</p>
+    <div class="cl-list plan-list">
+      <div class="cl-item">
+        <div class="cl-body">
+          <b>包的投放操作</b>
+          <p>继续关注新包投放，重点提升操作选择的判断。</p>
+          <ul>
+            <li><b>投放决策：</b>遇不同情况时，在多个可选操作中如何抉择。对自己的操作进行复盘，关注"当时为什么选择这个操作，而不是其他操作"。</li>
+            <li><b>zlblacke 素材测试：</b>结合实际数据观察素材，重点看素材上线后的消耗、CPI、ROI 等数据。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="cl-item">
+        <div class="cl-body">
+          <b>增加关注 iOS 包</b>
+          <p>目前关注 IAA 品类的 Android 包比较多。</p>
+          <ul>
+            <li>目前接触的 IAA Android 包比较多，接下来两周会有意识增加 iOS 包的观察。</li>
+            <li>主要关注 Unity US，Unity T1 为辅，通过素材表寻找相关包。</li>
+            <li>选择几个包进行持续跟踪，除了看数据，也重点观察这些包在不同数据表现下是怎么做投放操作的。</li>
+            <li>通过对比不同包的处理方式，积累"什么情况下适合怎么操作"的经验。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="cl-item">
+        <div class="cl-body">
+          <b>学习 Bigo、Google 投放相关一些内容</b>
+          <ul>
+            <li>开始接触 Bigo、Google 的投放，先通过平台探索，结合 SOP、平台后台和实际在投包的数据，理解不同平台的投放逻辑和操作方式。</li>
+            <li>再结合目前正在投放的包去看实际数据，理解不同操作对应的使用场景。</li>
+            <li>重点学习的不只是"怎么操作"，而是为什么在这个时间点选择这个操作，以及如果有多个操作可以选，通常怎么判断优先级。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">
+    <div><span class="k">数据源：</span>投放配置状态快照（系列/状态/操作）、BI 看板「激励游戏 · 投放分析_0时区_预估收入」（指标）</div>
+    <div><span class="k">看板链接：</span><a id="bi-link" href="https://flame.aoemo.com/bi/#/publish_max_rewarded?conditions=%7B%22date%22%3A%7B%22exclude%22%3Afalse%2C%22value%22%3A%5B%222026-08-21%22%2C%222026-09-03%22%5D%7D%2C%22game_type%22%3A%7B%22exclude%22%3Afalse%7D%2C%22game_subtype%22%3A%7B%22exclude%22%3Afalse%7D%2C%22app_store%22%3A%7B%22exclude%22%3Afalse%7D%2C%22game_pg%22%3A%7B%22exclude%22%3Afalse%2C%22value%22%3A%5B%22zlblacke%22%5D%7D%2C%22pg_ver%22%3A%7B%22exclude%22%3Afalse%7D%2C%22log_reg_res_ver%22%3A%7B%22exclude%22%3Afalse%7D%2C%22country_level%22%3A%7B%22exclude%22%3Afalse%7D%2C%22country_code%22%3A%7B%22exclude%22%3Afalse%7D%2C%22apk_channel%22%3A%7B%22exclude%22%3Afalse%7D%2C%22ad_type%22%3A%7B%22exclude%22%3Afalse%2C%22value%22%3A%5B%22video%22%2C%22interstitial%22%5D%7D%2C%22agency_amount%22%3A%7B%22exclude%22%3Afalse%2C%22value%22%3A%5B%22mixed_spend%22%2C%22agency_spend%22%5D%7D%2C%22campaign_writer%22%3A%7B%22exclude%22%3Afalse%7D%2C%22campaign%22%3A%7B%22exclude%22%3Afalse%7D%2C%22adset%22%3A%7B%22exclude%22%3Afalse%7D%2C%22creative%22%3A%7B%22exclude%22%3Afalse%7D%2C%22group_name%22%3A%7B%22exclude%22%3Afalse%7D%2C%22window_put_way%22%3A%7B%22exclude%22%3Afalse%7D%2C%22advertising_window%22%3A%7B%22exclude%22%3Afalse%7D%2C%22api_event_name%22%3A%7B%22exclude%22%3Afalse%7D%2C%22os%22%3A%7B%22exclude%22%3Afalse%7D%2C%22advertising_account%22%3A%7B%22exclude%22%3Afalse%7D%2C%22advertising_sub_account%22%3A%7B%22exclude%22%3Afalse%7D%2C%22adjust_sdk_ver%22%3A%7B%22exclude%22%3Afalse%7D%2C%22rejection_reason%22%3A%7B%22exclude%22%3Afalse%7D%2C%22revenue_component%22%3A%7B%22exclude%22%3Afalse%7D%2C%22other_costs%22%3A%7B%22exclude%22%3Afalse%7D%2C%22abtest_names%22%3A%7B%22exclude%22%3Afalse%7D%2C%22abtest_adgroup_names%22%3A%7B%22exclude%22%3Afalse%7D%2C%22publish_status%22%3A%7B%22exclude%22%3Afalse%7D%2C%22adasset_url%22%3A%7B%22exclude%22%3Afalse%7D%2C%22creative_state%22%3A%7B%22exclude%22%3Afalse%7D%2C%22sub_channel_state%22%3A%7B%22exclude%22%3Afalse%7D%7D&amp;filter_expand_list=%5B%22date%22%5D"></a></div>
+    <div><span class="k">trace_id：</span><span id="trace-id"></span>（BI 会话链路）</div>
+    <div style="margin-top:6px"><span class="k">提示：</span>广告格式：video + interstitial；指标口径：广告LTV(D0)、广告eCPM/0、人均播放次数/0、D0 ROI=ROI/0（总收入口径）；金额无币种标注（与看板一致）；D1 留存剔除昨日（9/3）；出价数值口径：平台原始出价（未做单位换算）。</div>
+  </div>
 </div>
-
-<section id="zlb-trend">
-  <div class="section-head"><span class="section-num">01</span><h2>包整体趋势（连续28天，7/24-8/20）</h2></div>
-  <p class="section-desc">前14天(7/24-8/6) = 前双周，后14天(8/7-8/20) = 当前双周；单渠道单系列，无需渠道/系列拆分。</p>
-  <div class="chart-grid-3"><div class="chart-card"><h5>D0 ROI</h5><div class="chart-box-28"><canvas id="c28_zlblacke_roi24h"></canvas></div></div><div class="chart-card"><h5>D7 ROI</h5><div class="chart-box-28"><canvas id="c28_zlblacke_roi_d7"></canvas></div></div><div class="chart-card"><h5>消耗</h5><div class="chart-box-28"><canvas id="c28_zlblacke_spend"></canvas></div></div><div class="chart-card"><h5>CPI</h5><div class="chart-box-28"><canvas id="c28_zlblacke_cpi"></canvas></div></div><div class="chart-card"><h5>广告eCPM</h5><div class="chart-box-28"><canvas id="c28_zlblacke_ecpm_d0"></canvas></div></div><div class="chart-card"><h5>D1留存</h5><div class="chart-box-28"><canvas id="c28_zlblacke_retention_d1"></canvas></div></div><div class="chart-card"><h5>人均播放次数</h5><div class="chart-box-28"><canvas id="c28_zlblacke_plays_24h"></canvas></div></div></div>
-</section>
-
-<section id="zlb-curr">
-  <div class="section-head"><span class="section-num">02</span><h2>当前双周14天整体数据（8/7-8/20）</h2></div>
-  <div class="chart-grid-3"><div class="chart-card"><h5>D0 ROI</h5><div class="chart-box-14"><canvas id="c14_zlblacke_roi24h"></canvas></div></div><div class="chart-card"><h5>D7 ROI</h5><div class="chart-box-14"><canvas id="c14_zlblacke_roi_d7"></canvas></div></div><div class="chart-card"><h5>消耗</h5><div class="chart-box-14"><canvas id="c14_zlblacke_spend"></canvas></div></div><div class="chart-card"><h5>CPI</h5><div class="chart-box-14"><canvas id="c14_zlblacke_cpi"></canvas></div></div><div class="chart-card"><h5>广告eCPM</h5><div class="chart-box-14"><canvas id="c14_zlblacke_ecpm_d0"></canvas></div></div><div class="chart-card"><h5>D1留存</h5><div class="chart-box-14"><canvas id="c14_zlblacke_retention_d1"></canvas></div></div><div class="chart-card"><h5>人均播放次数</h5><div class="chart-box-14"><canvas id="c14_zlblacke_plays_24h"></canvas></div></div></div>
-</section>
-
-<section id="zlb-concl">
-  <div class="section-head"><span class="section-num">03</span><h2>优化结论与经验沉淀</h2></div>
-  <div class="concl-grid">
-      <div class="concl-card"><div class="concl-num">01</div><h4>有效经验</h4><p>本双周主动提升消耗19.9%，验证了当前系列在更大预算下仍能维持D0 ROI约55%、D1留存基本持平的承接能力，具备继续小幅放量的基础。</p></div>
-      <div class="concl-card"><div class="concl-num">02</div><h4>本双周发现</h4><p>放量的同时CPI上涨14.6%、eCPM上涨9.2%，ROI下滑主要由买量成本上升驱动，而非用户质量明显恶化（留存/播放次数降幅有限）。28天累计D7 ROI(90.5%)仍达标，但当前双周(84.5%，部分cohort)已低于90%目标线，需要重点关注。</p></div>
-      <div class="concl-card"><div class="concl-num">03</div><h4>下一步</h4><p>建议评估当前出价策略是否推高了CPI，可尝试阶段性回调消耗增速，在CPI与量级间寻找平衡，确保D7 ROI能稳定回到90%以上；同时持续观察8/14之后新增cohort的D7 ROI实际达成情况。</p></div>
-    </div>
-</section>
-</div>
-
-      <footer>
-        <span>数据来源：sdypoolcharm_all.xlsx / zlblacke_all.xlsx 及各渠道、系列明细文件</span>
-        <span>数据周期：2026-07-24 ~ 2026-08-20（前14天=前双周，后14天=当前双周）</span>
-      </footer>
-    </div>
-  </main>
+</main>
 </div>
 
 <script>
-const DATA = {"dates28": ["07-24", "07-25", "07-26", "07-27", "07-28", "07-29", "07-30", "07-31", "08-01", "08-02", "08-03", "08-04", "08-05", "08-06", "08-07", "08-08", "08-09", "08-10", "08-11", "08-12", "08-13", "08-14", "08-15", "08-16", "08-17", "08-18", "08-19", "08-20"], "dates_curr": ["08-07", "08-08", "08-09", "08-10", "08-11", "08-12", "08-13", "08-14", "08-15", "08-16", "08-17", "08-18", "08-19", "08-20"], "packages": {"sdypoolcharm": {"series28": {"roi24h": [0.6631999999999999, 0.6327, 0.5863, 0.6108, 0.5474, 0.5832999999999999, 0.5413, 0.5, 0.4916, 0.5316, 0.5256000000000001, 0.42719999999999997, 0.5687, 0.4756, 0.5415, 0.5109, 0.4788, 0.51, 0.4858, 0.5422, 0.40700000000000003, 0.47259999999999996, 0.501, 0.4658, 0.5281, 0.5309, 0.6029, 0.5627], "roi_d7": [1.0293, 0.9692000000000001, 1.0451000000000001, 0.9246, 0.8095, 0.8706, 0.815, 0.7825, 0.8029000000000001, 0.8315, 0.8240000000000001, 0.6724, 0.8445999999999999, 0.8461, 0.856, 0.8251000000000001, 0.7617, 0.8304, 0.7545999999999999, 0.8406, 0.62, 0.7414000000000001, null, null, null, null, null, null], "spend": [738.78, 606.27, 653.3, 1086.97, 1142.79, 1003.5, 975.86, 1068.95, 955.5, 1069.65, 984.22, 997.36, 883.04, 855.87, 823.58, 846.0, 840.79, 933.36, 829.33, 861.9, 872.85, 717.26, 675.79, 727.65, 593.49, 436.5, 417.99, 252.23], "cpi": [1.469, 1.332, 1.276, 1.61, 1.504, 1.388, 1.394, 1.483, 1.43, 1.407, 1.352, 1.498, 1.274, 1.466, 1.331, 1.312, 1.322, 1.477, 1.338, 1.322, 1.515, 1.553, 1.354, 1.479, 1.396, 1.28, 1.302, 1.213], "ecpm_d0": [56.578, 63.119, 56.49, 70.466, 61.051, 57.157, 62.805, 55.487, 59.181, 57.729, 70.858, 63.12, 56.551, 63.438, 52.845, 53.345, 56.654, 57.256, 53.024, 64.934, 60.309, 63.614, 65.816, 69.334, 61.077, 58.499, 76.474, 54.962], "retention_d1": [0.3539, 0.3187, 0.3105, 0.35109999999999997, 0.3066, 0.34159999999999996, 0.3014, 0.344, 0.3144, 0.35259999999999997, 0.32689999999999997, 0.3048, 0.3521, 0.2979, 0.3118, 0.3411, 0.30820000000000003, 0.3513, 0.3161, 0.3037, 0.2899, 0.3139, 0.3046, 0.2703, 0.2659, 0.3196, 0.2866, 0.0288], "plays_24h": [18.24, 15.39, 13.43, 15.22, 14.71, 14.67, 13.35, 14.11, 12.01, 13.08, 10.87, 10.41, 13.67, 10.77, 12.37, 12.71, 10.74, 13.87, 11.61, 11.46, 10.01, 11.4, 10.9, 11.05, 12.21, 11.53, 9.63, 11.02]}, "channel_curr": {"mtg": {"roi24h": [0.674, 0.6531999999999999, 0.5718, 0.6156, 0.6288, 0.5863, 0.44520000000000004, 0.4315, 0.5870000000000001, 0.4972, 0.7284999999999999, 0.5678, 0.6188, 0.4725], "roi_d7": [0.9035, 0.7970999999999999, 0.7325, 0.917, 0.8862000000000001, 0.8351999999999999, 0.6277, 0.5965, null, null, null, null, null, null], "spend": [196.92, 154.83, 202.72, 209.76, 202.26, 221.0, 258.39, 257.38, 261.71, 291.44, 252.3, 242.84, 209.6, 131.7], "cpi": [1.79, 1.58, 1.794, 1.96, 1.759, 1.613, 1.758, 2.059, 1.667, 1.93, 1.628, 1.547, 1.747, 1.646]}, "unity": {"roi24h": [0.4844, 0.4658, 0.4353, 0.473, 0.43119999999999997, 0.5133, 0.38549999999999995, 0.4782, 0.4364, 0.4409, 0.3611, 0.4635, 0.565, 0.6441], "roi_d7": [0.8144, 0.8065000000000001, 0.7334, 0.7957, 0.6911, 0.8194, 0.6107, 0.7926000000000001, null, null, null, null, null, null], "spend": [626.67, 691.16, 638.07, 723.61, 627.07, 640.9, 614.45, 459.87, 414.08, 436.21, 341.2, 193.66, 208.39, 120.53], "cpi": [1.418, 1.371, 1.384, 1.508, 1.375, 1.412, 1.617, 1.564, 1.418, 1.44, 1.587, 1.456, 1.389, 1.435]}}, "series_curr": {"HMF_AND_US_260128": {"channel": "Unity", "status": "8-20 停投", "roi24h": [0.48950000000000005, 0.466, 0.4855, 0.5218, 0.3372, 0.49119999999999997, 0.39130000000000004, 0.5367999999999999, 0.4346, 0.4594, 0.3871, 0.46130000000000004, 0.5710999999999999, 0.6597], "spend": [371.7, 427.38, 366.71, 408.17, 398.6, 427.35, 398.9, 293.43, 304.9, 315.99, 297.68, 191.33, 205.03, 116.17]}, "HMF_AND_US_260529": {"channel": "Unity", "status": "8-17 停投", "roi24h": [0.6507, 0.4972, 0.2897, 0.3982, 0.6285000000000001, 0.7670999999999999, 0.43270000000000003, 0.3529, 0.5126, 0.4022, 0.18469999999999998, null, 0.1929, 0.0], "spend": [93.66, 110.81, 79.61, 140.75, 87.4, 100.34, 102.51, 97.11, 90.0, 113.8, 40.07, 0.0, 3.36, 0.64]}, "HMF_AND_T1_260128": {"channel": "Unity", "status": "8-14 停投", "roi24h": [0.3762, 0.4426, 0.39990000000000003, 0.4194, 0.5748, 0.3718, 0.3224, 0.40590000000000004, 0.107, 0.20989999999999998, 0.1641, 0.6507999999999999, null, 0.2688], "spend": [161.31, 152.97, 191.74, 174.68, 141.06, 113.21, 113.04, 69.34, 19.18, 6.41, 3.45, 2.33, 0.0, 3.73]}, "LJF_AND_US_260128": {"channel": "MTG", "status": "8-20 停投", "roi24h": [0.7214, 0.5603, 0.6133, 0.6241, 0.6356, 0.6043, 0.44409999999999994, 0.4375, 0.5870000000000001, 0.4972, 0.7284999999999999, 0.5678, 0.6188, 0.4725], "spend": [173.27, 132.32, 178.29, 196.79, 187.96, 213.61, 249.7, 251.01, 261.71, 291.44, 252.3, 242.84, 209.6, 131.7]}, "LJF_AND_T1_260225": {"channel": "MTG", "status": "8-14 停投", "roi24h": [0.3265, 1.1991, 0.26899999999999996, 0.4861, 0.5383, 0.0658, 0.4755, 0.195, null, null, null, null, null, null], "spend": [23.65, 22.51, 24.43, 12.97, 14.3, 7.39, 8.69, 6.37, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}}}, "zlblacke": {"series28": {"roi24h": [0.5648, 0.6324000000000001, 0.6736, 0.6056, 0.5846, 0.6987000000000001, 0.5228, 0.6766, 0.6125, 0.6593000000000001, 0.5979, 0.715, 0.6236999999999999, 0.6209, 0.6015999999999999, 0.515, 0.4533, 0.6696, 0.6023, 0.6149, 0.622, 0.47759999999999997, 0.516, 0.5186999999999999, 0.5373, 0.5872999999999999, 0.5333, 0.4732], "roi_d7": [0.8240000000000001, 0.9393, 0.9595, 0.8854000000000001, 0.9220999999999999, 1.015, 0.7132, 0.9854, 0.9423999999999999, 0.9024, 1.0059, 1.1169, 0.96, 0.8642, 0.9523, 0.7768999999999999, 0.6713, 0.9555, 0.912, 0.8490000000000001, 0.9001, 0.7415, null, null, null, null, null, null], "spend": [990.48, 1014.35, 1000.83, 1053.03, 981.37, 988.28, 1016.65, 945.16, 1058.48, 1025.95, 1013.89, 1090.69, 980.58, 1213.76, 1252.09, 1217.68, 1179.71, 1237.31, 1217.73, 1179.2, 1247.55, 1272.35, 1384.66, 1549.22, 1387.13, 1057.51, 1055.14, 1003.58], "cpi": [2.272, 2.244, 2.072, 2.294, 2.382, 2.059, 2.105, 2.028, 2.233, 2.275, 2.299, 2.525, 2.409, 2.256, 2.576, 2.485, 2.442, 2.525, 2.46, 2.349, 2.562, 2.679, 2.579, 2.685, 2.464, 2.67, 2.799, 2.772], "ecpm_d0": [81.654, 85.252, 85.776, 84.96, 100.834, 75.986, 80.561, 91.54, 77.506, 86.878, 94.635, 107.36, 99.424, 101.466, 107.214, 83.98, 82.53, 96.886, 90.708, 104.961, 90.645, 108.862, 95.544, 93.688, 107.941, 91.166, 105.856, 109.703], "retention_d1": [0.3119, 0.3097, 0.3106, 0.3028, 0.32280000000000003, 0.3625, 0.31679999999999997, 0.2876, 0.3481, 0.2882, 0.3107, 0.3588, 0.3243, 0.32159999999999994, 0.33130000000000004, 0.3102, 0.2712, 0.3204, 0.3111, 0.31079999999999997, 0.31420000000000003, 0.3074, 0.3128, 0.3189, 0.302, 0.33590000000000003, 0.3422, 0.0359], "plays_24h": [16.83, 17.46, 16.98, 16.9, 14.54, 19.26, 14.71, 15.44, 19.08, 17.65, 14.33, 16.53, 16.07, 14.7, 15.5, 16.18, 13.74, 17.49, 17.44, 13.82, 18.19, 12.64, 15.95, 14.87, 13.16, 17.76, 15.54, 11.66]}}}};
-const COLORS = { mtg:'#C1791E', unity:'#127D82', sdypoolcharm:'#4C63C9', zlblacke:'#C15561',
-  grid:'rgba(41,39,34,0.08)', text:'#6E6A5E', prev:'#B7B2A2', white:'#FFFFFF' };
-Chart.defaults.font.family = "'IBM Plex Mono', monospace";
-Chart.defaults.font.size = 10;
-Chart.defaults.color = COLORS.text;
+/* ========== 数据（本面板口径）==========
+   CUR/PREV: [日期, 广告消耗, CPI, 广告LTV(D0), 广告eCPM(D0), D1留存%(末位null), 人均播放次数(D0)]
+   D0CUR/D0PREV: D0 ROI 每日 % */
+const CUR = [
+["2026-08-21",614.83,2.383,1.318,108.953,24.81,12.1],
+["2026-08-22",673.64,3.034,1.352,152.619,27.03,8.86],
+["2026-08-23",591.42,2.375,1.415,94.81,26.91,14.92],
+["2026-08-24",801.5,2.611,1.328,110.004,26.38,12.07],
+["2026-08-25",855.68,2.377,1.148,94.393,30.83,12.16],
+["2026-08-26",791.51,2.255,1.076,83.529,32.48,12.88],
+["2026-08-27",633.06,2.221,1.19,104.323,32.28,11.41],
+["2026-08-28",646.32,2.26,1.079,101.082,30.07,10.67],
+["2026-08-29",634.08,2.458,1.294,94.053,26.74,13.76],
+["2026-08-30",594.96,2.438,1.578,125.457,26.23,12.58],
+["2026-08-31",531.91,2.171,1.332,119.513,31.43,11.14],
+["2026-09-01",856.96,2.498,1.544,123.898,33.53,12.46],
+["2026-09-02",933.49,2.53,1.278,124.591,27.91,10.26],
+["2026-09-03",835.32,2.333,1.255,134.237,null,9.35]
+];
+const PREV = [
+["2026-08-07",1253.5,2.579,1.33,107.214,33.13,12.41],
+["2026-08-08",1219.08,2.488,1.083,83.98,31.02,12.89],
+["2026-08-09",1181.11,2.445,0.972,82.53,27.12,11.77],
+["2026-08-10",1238.72,2.528,1.415,96.886,32.04,14.61],
+["2026-08-11",1219.15,2.463,1.272,90.708,31.11,14.02],
+["2026-08-12",1180.67,2.352,1.154,104.961,31.08,10.99],
+["2026-08-13",1248.94,2.565,1.333,90.645,31.42,14.7],
+["2026-08-14",1273.71,2.681,1.039,108.862,30.74,9.54],
+["2026-08-15",1386.2,2.581,1.149,95.544,31.28,12.03],
+["2026-08-16",1550.89,2.688,1.07,93.688,31.89,11.42],
+["2026-08-17",1388.75,2.467,1.063,107.941,30.2,9.84],
+["2026-08-18",1058.63,2.673,1.338,91.166,33.59,14.68],
+["2026-08-19",1056.23,2.802,1.278,105.833,34.22,12.08],
+["2026-08-20",1004.61,2.775,1.305,113.267,null,11.52]
+];
+const D0CUR = [55.31,44.56,59.55,50.86,48.28,47.7,53.59,47.75,52.66,64.74,61.34,61.79,50.52,53.8];
+const D0PREV = [51.57,43.52,39.73,55.99,51.64,49.05,51.97,38.74,44.52,39.8,43.08,50.07,45.62,47.02];
+
+const SERIES = [
+  {channel:"unity", series:"zlblacke_HMF_AND_US_260409_Unity_D7ROAS", live:true, stop:null,
+   note:"US · 2026-04-09 起投 · 优化师 陈国华 · platform enable（09-03 12:00 快照仍在采集）"}
+];
+
+/* ========== 系列卡片：仅展示在投 ========== */
+(function(){
+  const tb = document.getElementById('series-tbody');
+  SERIES.forEach(s=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="channel">${s.channel}</td>
+      <td class="series">${s.series}</td>
+      <td class="status"><span class="st ${s.live?'live':'stopped'}"><span class="dot"></span>${s.live?'正在投放':'已停投'}</span></td>
+      <td>${s.stop || '–'}</td>`;
+    tr.title = s.note;
+    tb.appendChild(tr);
+  });
+  document.getElementById('cnt-total').textContent = SERIES.length;
+  document.getElementById('cnt-unity').textContent = SERIES.filter(s=>s.channel==='unity').length;
+  document.getElementById('cnt-mtg').textContent = SERIES.filter(s=>s.channel==='mintegral').length;
+  document.getElementById('cnt-stopped').textContent = SERIES.filter(s=>!s.live).length;
+  document.getElementById('cnt-live').textContent = SERIES.filter(s=>s.live).length;
+})();
+
+/* ========== Chart 公共 ========== */
+if (typeof Chart !== 'undefined'){
+  Chart.defaults.font.family = "'IBM Plex Mono', 'Menlo', 'Consolas', monospace";
+  Chart.defaults.font.size = 10;
+  Chart.defaults.color = '#5F7078';
+}
+const COLORS = { prev:'#B5C1C5', zlblacke:'#315C72' };
+const METRIC_COLORS = { roi24h:'#3457D5', spend:'#7B8991', cpi:'#B28A54', ltv:'#456B7A', ecpm_d0:'#2F97C1', retention_d1:'#668F7A', plays_24h:'#8355D6' };
+const metricFmt = { roi24h:{mul:1, dec:1, unit:'%'}, spend:{mul:1, dec:0, unit:''}, ltv:{mul:1, dec:2, unit:''},
+  cpi:{mul:1, dec:2, unit:''}, ecpm_d0:{mul:1, dec:1, unit:''}, retention_d1:{mul:1, dec:1, unit:'%'}, plays_24h:{mul:1, dec:1, unit:''} };
 
 function baseOpts(extra={}){
   return Object.assign({
     responsive:true, maintainAspectRatio:false,
     interaction:{mode:'index', intersect:false},
     plugins:{ legend:{display:false}, tooltip:{
-      backgroundColor:'#292722', borderColor:'#292722', borderWidth:1,
-      titleColor:'#F5F3ED', bodyColor:'#F5F3ED', padding:8, boxPadding:3
+      backgroundColor:'#263640', borderColor:'#263640', borderWidth:1,
+      titleColor:'#F5F7F7', bodyColor:'#F5F7F7', padding:8, boxPadding:3
     }},
     scales:{
-      x:{ grid:{display:false}, ticks:{color:COLORS.text, font:{size:9}, maxRotation:0, autoSkip:true, maxTicksLimit:7} },
-      y:{ grid:{color:COLORS.grid}, ticks:{color:COLORS.text, font:{size:9}} }
+      x:{ grid:{display:false}, ticks:{color:'#5F7078', font:{size:9}, maxRotation:0, autoSkip:true, maxTicksLimit:7} },
+      y:{ grid:{color:'#E4EAEC'}, ticks:{color:'#5F7078', font:{size:9}} }
     }
   }, extra);
 }
+const nullSafe = (raw, mul) => raw.map(v => v==null ? null : v*mul);
 
-const metricFmt = { roi24h:{mul:100, dec:1, unit:'%'}, roi_d7:{mul:100, dec:1, unit:'%'}, spend:{mul:1, dec:0, unit:''},
-  cpi:{mul:1, dec:2, unit:''}, ecpm_d0:{mul:1, dec:1, unit:''}, retention_d1:{mul:100, dec:1, unit:'%'}, plays_24h:{mul:1, dec:1, unit:''} };
-
-function nullSafe(raw, mul){ return raw.map(v => v==null ? null : v*mul); }
-
-function build28Chart(pkgName, key){
-  const pkgData = DATA.packages[pkgName].series28[key];
-  if(!pkgData) return;
-  const fmt = metricFmt[key];
-  const vals = nullSafe(pkgData, fmt.mul);
-  const accent = COLORS[pkgName];
-  const el = document.getElementById('c28_'+pkgName+'_'+key);
+/* ---------- 28 天趋势（前14=前双周灰，后14=当前双周 accent） ---------- */
+const dates28 = PREV.map(r=>r[0].slice(5)).concat(CUR.map(r=>r[0].slice(5)));
+const series28 = {
+  roi24h: D0PREV.concat(D0CUR),
+  ltv: PREV.map(r=>r[3]).concat(CUR.map(r=>r[3])),
+  spend: PREV.map(r=>r[1]).concat(CUR.map(r=>r[1])),
+  cpi: PREV.map(r=>r[2]).concat(CUR.map(r=>r[2])),
+  ecpm_d0: PREV.map(r=>r[4]).concat(CUR.map(r=>r[4])),
+  retention_d1: PREV.map(r=>r[5]).concat(CUR.map(r=>r[5])),
+  plays_24h: PREV.map(r=>r[6]).concat(CUR.map(r=>r[6]))
+};
+function build28Chart(key, elId){
+  if(typeof Chart === 'undefined') return;
+  const el = document.getElementById(elId || 'c28_'+key);
   if(!el) return;
+  const fmt = metricFmt[key];
+  const vals = nullSafe(series28[key], fmt.mul);
+  const accent = METRIC_COLORS[key] || COLORS.zlblacke;
+  try {
   new Chart(el, {
     type:'line',
-    data:{ labels: DATA.dates28, datasets:[{ data: vals, borderWidth:2, pointRadius:0, tension:0.3, spanGaps:false,
-      segment:{ borderColor: ctx => ctx.p0DataIndex < 13 ? COLORS.prev : accent },
-      borderColor: accent }] },
+    data:{ labels: dates28, datasets:(function(){
+      const ds = [{ data: vals, borderWidth:2, pointRadius:0, tension:0.3, spanGaps:false,
+        segment:{ borderColor: ctx => ctx.p0DataIndex < 13 ? COLORS.prev : accent },
+        borderColor: accent }];
+      const refLine = key==='roi24h' ? 52 : (key==='retention_d1' ? 30 : null);
+      if(refLine!=null) ds.push({ type:'line', data: dates28.map(()=>refLine), borderColor:'#8A999F',
+        borderDash:[5,4], borderWidth:1.2, pointRadius:0, fill:false, spanGaps:true,
+        label:'达标线 '+refLine+'%' });
+      return ds;
+    })()},
     options: baseOpts({
-      plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#292722', borderColor:'#292722', borderWidth:1,
-        titleColor:'#F5F3ED', bodyColor:'#F5F3ED', padding:8,
+      plugins:{ legend:{display:false}, tooltip:{
+        backgroundColor:'#263640', borderColor:'#263640', borderWidth:1,
+        titleColor:'#F5F7F7', bodyColor:'#F5F7F7', padding:8,
         callbacks:{ label:c=> c.parsed.y==null? '无数据' : `${c.parsed.y.toFixed(fmt.dec)}${fmt.unit}` } } },
-      scales:{ x:{grid:{display:false}, ticks:{color:COLORS.text, font:{size:8}, maxTicksLimit:5}},
-        y:{grid:{color:COLORS.grid}, ticks:{color:COLORS.text, font:{size:9}}} }
+      scales:{ x:{grid:{display:false}, ticks:{color:'#5F7078', font:{size:8}, maxTicksLimit:5}},
+        y:{grid:{color:'#E4EAEC'}, ticks:{color:'#5F7078', font:{size:9}}} }
     })
   });
-}
-
-function build14Chart(pkgName, key){
-  const full = DATA.packages[pkgName].series28[key];
-  if(!full) return;
-  const raw = full.slice(14);
-  const fmt = metricFmt[key];
-  const vals = nullSafe(raw, fmt.mul);
-  const accent = COLORS[pkgName];
-  const el = document.getElementById('c14_'+pkgName+'_'+key);
-  if(!el) return;
-  new Chart(el, {
-    type:'line',
-    data:{ labels: DATA.dates_curr, datasets:[{ data: vals, borderColor:accent, borderWidth:2,
-      pointRadius:2, pointBackgroundColor:accent, tension:0.3, spanGaps:false }] },
-    options: baseOpts({
-      plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#292722', borderColor:'#292722', borderWidth:1,
-        titleColor:'#F5F3ED', bodyColor:'#F5F3ED', padding:8,
-        callbacks:{ label:c=> c.parsed.y==null? '无数据' : `${c.parsed.y.toFixed(fmt.dec)}${fmt.unit}` } } },
-      scales:{ x:{grid:{display:false}, ticks:{color:COLORS.text, font:{size:8}, maxTicksLimit:7}},
-        y:{grid:{color:COLORS.grid}, ticks:{color:COLORS.text, font:{size:9}}} }
-    })
-  });
-}
-
-function buildChannelChart(key){
-  const ch = DATA.packages.sdypoolcharm.channel_curr;
-  const fmt = metricFmt[key];
-  const mtgVals = nullSafe(ch.mtg[key], fmt.mul);
-  const unityVals = nullSafe(ch.unity[key], fmt.mul);
-  const el = document.getElementById('cch_sdypoolcharm_'+key);
-  if(!el) return;
-  new Chart(el, {
-    type:'line',
-    data:{ labels: DATA.dates_curr, datasets:[
-      { label:'Unity', data: unityVals, borderColor:COLORS.unity, borderWidth:2, pointRadius:2, pointBackgroundColor:COLORS.unity, tension:0.3 },
-      { label:'Mintegral', data: mtgVals, borderColor:COLORS.mtg, borderWidth:2, pointRadius:2, pointBackgroundColor:COLORS.mtg, tension:0.3 },
-    ]},
-    options: baseOpts({
-      plugins:{ legend:{display:true, position:'top', align:'end', labels:{color:COLORS.text, boxWidth:8, font:{size:9}, padding:6}},
-        tooltip:{ backgroundColor:'#292722', borderColor:'#292722', borderWidth:1, titleColor:'#F5F3ED', bodyColor:'#F5F3ED', padding:8,
-          callbacks:{ label:c=>`${c.dataset.label}: ${c.parsed.y==null?'无数据':c.parsed.y.toFixed(fmt.dec)+fmt.unit}` } } },
-      scales:{ x:{grid:{display:false}, ticks:{color:COLORS.text, font:{size:8}, maxTicksLimit:7}},
-        y:{grid:{color:COLORS.grid}, ticks:{color:COLORS.text, font:{size:9}}} }
-    })
-  });
-}
-
-function buildSeriesChart(seriesKey){
-  const s = DATA.packages.sdypoolcharm.series_curr[seriesKey];
-  if(!s) return;
-  const vals = nullSafe(s.roi24h, 100);
-  const color = s.channel==='MTG' ? COLORS.mtg : COLORS.unity;
-  // mark stop-date point: parse status like "8-20 停投" -> find index in dates_curr matching MM-DD
-  const stopMatch = s.status.match(/(\d{1,2})-(\d{1,2})/);
-  let stopIdx = -1;
-  if(stopMatch){
-    const md = stopMatch[1].padStart(2,'0')+'-'+stopMatch[2].padStart(2,'0');
-    stopIdx = DATA.dates_curr.indexOf(md);
+  } catch(e){
+    console.error('[28d chart]', key, e);
+    (window.__chartErrs = window.__chartErrs || []).push({key:key, err:String(e)});
+    el.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:#B56F70">图表渲染失败：' + String(e).slice(0,80) + '</div>';
   }
-  const ptR = DATA.dates_curr.map((d,i)=> i===stopIdx ? 6 : 2);
-  const ptC = DATA.dates_curr.map((d,i)=> i===stopIdx ? '#FFFFFF' : color);
-  const el = document.getElementById('cs_sdypoolcharm_'+seriesKey);
+}
+/* ---------- 包整体趋势（28天）：pill 切换 + 单图（前双周灰/当前双周彩色） ---------- */
+let metricChart28 = null;
+function renderMetricChart28(key){
+  const el = document.getElementById('metricChart28');
+  if(!el || typeof Chart === 'undefined') return;
+  if(metricChart28) metricChart28.destroy();
+  const fmt = metricFmt[key];
+  const vals = nullSafe(series28[key], fmt.mul);
+  const accent = METRIC_COLORS[key] || '#456B7A';
+  const leg = document.getElementById('leg28');
+  if(leg) leg.style.background = accent;
+  const ds = [{ data: vals, borderWidth:2, pointRadius:0, tension:0.3, spanGaps:false,
+    segment:{ borderColor: ctx => ctx.p0DataIndex < 13 ? '#B5C1C5' : accent },
+    borderColor: accent }];
+  if(key==='retention_d1') ds.push({ type:'line', label:'达标线 30%', data:dates28.map(()=>30),
+    borderColor:'#8A999F', borderDash:[5,4], borderWidth:1.2, pointRadius:0, fill:false, spanGaps:true });
+  try{
+    metricChart28 = new Chart(el, {
+      type:'line',
+      data:{ labels: dates28, datasets: ds },
+      options: baseOpts({
+        plugins:{ legend:{display:false}, tooltip:{
+          backgroundColor:'#263640', borderColor:'#263640', borderWidth:1,
+          titleColor:'#F5F7F7', bodyColor:'#F5F7F7', padding:8,
+          callbacks:{ label:c=> c.parsed.y==null? '无数据' : `${c.parsed.y.toFixed(fmt.dec)}${fmt.unit}` } } },
+        scales:{ x:{grid:{display:false}, ticks:{color:'#5F7078', font:{size:8}, maxTicksLimit:7}},
+          y:{grid:{color:'#E4EAEC'}, ticks:{color:'#5F7078', font:{size:9}}} }
+      })
+    });
+  }catch(e){
+    console.error('[chart28]', key, e);
+    el.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:#B56F70">图表渲染失败：' + String(e).slice(0,80) + '</div>';
+  }
+}
+document.querySelectorAll('#metricTabs28 .metric-tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#metricTabs28 .metric-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderMetricChart28(btn.dataset.metric);
+  });
+});
+renderMetricChart28('spend');
+build28Chart('roi24h','ov_c28_roi');
+
+/* ---------- 投放操作记录 + D0 ROI 当前双周（操作标记） ---------- */
+const OP_TYPES = {
+  '预算调整': '#7C6BA8',
+  '投放调整': '#3E8E7E',
+  '素材调整': '#C77B3D',
+  '渠道调整': '#E8734A',
+  '停投/开启': '#DC2626',
+};
+const OPS = [
+  ['08-21','预算调整','预算下调：shared 1000 → 600'],
+  ['08-24','预算调整','预算上调：shared 600 → 800'],
+  ['08-25','素材调整','移除 2 个素材包：260408-zlblacke-gxm-us-jushituijian60s-paypal-3step-21dian、260408-zlblacke-hqw-US-meinvdajiaw-paypal-3step-21dian'],
+  ['08-26','素材调整','新增 2 个素材包：260605-zlblacke-gxm-us-yeshouliwu120s-paypal-PE1SJ、…-hqw-US-yeshoushengriw-…PE1SJ'],
+  ['08-27','投放调整','出价上调：US 73 → 74'],
+  ['08-27','预算调整','预算下调：shared 800 → 600'],
+  ['09-01','素材调整','移除 260605-…PE1SJ / …PE1SJ；新增 260828-zlblacke-hyc1-US-haidaoxiaojuchangcc-paypal-PE1SJ / PE1WH（+2）；素材包状态：Approved → Exploration（PE1SJ/PE1WH）'],
+  ['09-02','素材调整','新增 260831-zlblacke-hqw-US-chaoshilongwangw-paypal-PE1SJ/PE1WH（+2）；素材包状态：Approved → Exploration（PE1SJ/PE1WH）'],
+  ['09-02','预算调整','预算上调：shared 800 → 1000'],
+  ['09-03','预算调整','预算下调：shared 1000 → 800'],
+];
+(function(){
+  const el = document.getElementById('opsList');
+  el.innerHTML = OPS.map(o=>{
+    const c = OP_TYPES[o[1]] || '#C49A62';
+    return `<div class="op-entry">
+      <span class="op-entry-dot" style="background:${c}"></span>
+      <div class="op-entry-body">
+        <div class="op-entry-top"><span class="op-entry-date">${o[0]}</span><span class="op-entry-type" style="color:${c}">${o[1]}</span></div>
+        <div class="op-entry-note">${o[2]}</div>
+      </div>
+    </div>`;
+  }).join('');
+})();
+
+function build14RoiChart(){
+  if(typeof Chart === 'undefined') return;
+  const el = document.getElementById('c14_roi24h');
   if(!el) return;
+  const fmt = metricFmt.roi24h;
+  const dates = CUR.map(r=>r[0].slice(5));
+  const vals = nullSafe(D0CUR, fmt.mul);
+  const accent = METRIC_COLORS.roi24h;
+  const opsByDate = {};
+  OPS.forEach(ev=>{ (opsByDate[ev[0]] = opsByDate[ev[0]] || []).push(ev); });
+  const ptR = 0;   // 操作标记圆圈已按用户要求去除（仅移除标记，保留 tooltip 操作明细）
+  const ptBg = accent; const ptBorder = accent; const ptBorderW = 0;
   new Chart(el, {
     type:'line',
-    data:{ labels: DATA.dates_curr, datasets:[{ data: vals, borderColor:color, borderWidth:2,
-      pointRadius:ptR, pointBackgroundColor:ptC, pointBorderColor:color, pointBorderWidth:2, tension:0.3, spanGaps:false }] },
+    data:{ labels: dates, datasets:[{ data: vals, borderColor:accent, borderWidth:2,
+      pointRadius:ptR, pointBackgroundColor:ptBg, pointBorderColor:ptBorder, pointBorderWidth:ptBorderW,
+      tension:0.3, spanGaps:false },
+      { type:'line', data: dates.map(()=>52), borderColor:'#8A999F', borderDash:[5,4], borderWidth:1.2,
+        pointRadius:0, fill:false, spanGaps:true, label:'达标线 52%' }] },
     options: baseOpts({
-      plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#292722', borderColor:'#292722', borderWidth:1,
-        titleColor:'#F5F3ED', bodyColor:'#F5F3ED', padding:8,
-        callbacks:{ label:c=> c.parsed.y==null? '无数据/已停投' : `D0 ROI: ${c.parsed.y.toFixed(1)}%` } } },
-      scales:{ x:{grid:{display:false}, ticks:{color:COLORS.text, font:{size:8}, maxTicksLimit:7}},
-        y:{grid:{color:COLORS.grid}, ticks:{color:COLORS.text, font:{size:9}}} }
+      plugins:{ legend:{display:false}, tooltip:{
+        backgroundColor:'#263640', borderColor:'#263640', borderWidth:1,
+        titleColor:'#F5F7F7', bodyColor:'#F5F7F7', padding:8,
+        callbacks:{
+          label:c=> c.parsed.y==null? '无数据' : `D0 ROI: ${c.parsed.y.toFixed(fmt.dec)}${fmt.unit}`,
+          afterLabel:c=>{
+            const evs = opsByDate[dates[c.dataIndex]];
+            return evs ? evs.map(e=>`[${e[1]}] ${e[2]}`).join('\n') : '';
+          }
+        } } },
+      scales:{ x:{grid:{display:false}, ticks:{color:'#5F7078', font:{size:8}, maxTicksLimit:7}},
+        y:{grid:{color:'#E4EAEC'}, ticks:{color:'#5F7078', font:{size:9}}} }
     })
   });
 }
+build14RoiChart();
 
-const metricKeys28 = ['roi24h','roi_d7','spend','cpi','ecpm_d0','retention_d1','plays_24h'];
-['sdypoolcharm','zlblacke'].forEach(pkgName=>{
-  metricKeys28.forEach(k=> build28Chart(pkgName, k));
-  metricKeys28.forEach(k=> build14Chart(pkgName, k));
+/* ---------- 投放表现 Performance（pill 切换 + 前双周/当前双周） ---------- */
+const metricCol = { spend:1, cpi:2, ecpm_d0:4, retention_d1:5, plays_24h:6 };
+let metricChartInst = null;
+function renderMetricChart(key){
+  const el = document.getElementById('metricChart');
+  if(!el || typeof Chart === 'undefined') return;
+  if(metricChartInst) metricChartInst.destroy();
+  const col = metricCol[key];
+  const fmt = metricFmt[key];
+  let prev = PREV.map(r=>r[col]);
+  let curr = CUR.map(r=>r[col]);
+  if(key==='retention_d1'){ curr = curr.slice(); curr[curr.length-1] = null; }
+  const prevVals = prev.map(v=> v==null?null:v*fmt.mul);
+  const currVals = curr.map(v=> v==null?null:v*fmt.mul);
+  metricChartInst = new Chart(el, {
+    type:'line',
+    data:{ labels: Array.from({length:14},(_,i)=>'Day '+(i+1)), datasets:(function(){
+      const ds = [{ label:'当前双周', data:currVals, borderColor:'#263640', borderWidth:2.5,
+        pointRadius:0, pointHoverRadius:4, tension:0.45, cubicInterpolationMode:'monotone', spanGaps:false }];
+      if(key==='retention_d1') ds.push({ type:'line', label:'参考线 30%', data:Array.from({length:14},()=>30),
+        borderColor:'#8A999F', borderDash:[5,4], borderWidth:1.2, pointRadius:0, fill:false, spanGaps:true });
+      return ds;
+    })()},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{ legend:{display:false}, tooltip:{
+        backgroundColor:'#FFFFFF', borderColor:'#D9E3E6', borderWidth:1,
+        titleColor:'#243B49', bodyColor:'#5F7078', padding:12, boxPadding:5,
+        titleFont:{size:12, weight:'600'}, bodyFont:{size:11.5},
+        callbacks:{
+          title:c=> c[0].label,
+          label:c=> c.parsed.y==null? `${c.dataset.label}: 无数据` : `${c.dataset.label}: ${c.parsed.y.toFixed(fmt.dec)}${fmt.unit}`
+        } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{color:'#5F7078', font:{size:9}, maxTicksLimit:7} },
+        y:{ grid:{color:'#E4EAEC'}, ticks:{color:'#5F7078', font:{size:9}} }
+      }
+    }
+  });
+}
+document.querySelectorAll('#metricTabs .metric-tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#metricTabs .metric-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderMetricChart(btn.dataset.metric);
+  });
 });
-['roi24h','spend','cpi'].forEach(k=> buildChannelChart(k));
-Object.keys(DATA.packages.sdypoolcharm.series_curr || {}).forEach(sk=> buildSeriesChart(sk));
+renderMetricChart('spend');
 
-function buildOverviewRoi(pkgName){
-  const raw = DATA.packages[pkgName].series28.roi24h;
-  const prev = raw.slice(0,14).map(v=>v*100);
-  const curr = raw.slice(14).map(v=>v==null?null:v*100);
-  const accent = COLORS[pkgName];
-  new Chart(document.getElementById('ov_roi_'+pkgName), {
+/* ========== 总览：D0 ROI 双周对比 ========== */
+function buildOverviewRoi(){
+  if(typeof Chart === 'undefined') return;
+  const el = document.getElementById('ov_roi');
+  if(!el) return;
+  new Chart(el, {
     type:'line',
     data:{ labels: Array.from({length:14},(_,i)=>'D'+(i+1)), datasets:[
-      { label:'前双周(7/24-8/6)', data:prev, borderColor:COLORS.prev, borderDash:[3,3], borderWidth:1.5, pointRadius:2, tension:0.3 },
-      { label:'当前双周(8/7-8/20)', data:curr, borderColor:accent, borderWidth:2.5, pointRadius:2.5, tension:0.3 },
+      { label:'前双周(8/7-8/20)', data:nullSafe(D0PREV.slice(),1), borderColor:'#B5C1C5', borderDash:[3,3], borderWidth:1.5, pointRadius:0, pointHoverRadius:4, tension:0.45, cubicInterpolationMode:'monotone' },
+      { label:'当前双周(8/21-9/3)', data:nullSafe(D0CUR.slice(),1), borderColor:'#3457D5', borderWidth:2.5, pointRadius:0, pointHoverRadius:4, tension:0.45, cubicInterpolationMode:'monotone' },
+      { type:'line', label:'达标线 52%', data:Array.from({length:14},()=>52), borderColor:'#8A999F',
+        borderDash:[5,4], borderWidth:1.2, pointRadius:0, fill:false, spanGaps:true },
     ]},
     options: baseOpts({
-      plugins:{ legend:{display:true, position:'top', align:'end', labels:{color:COLORS.text, boxWidth:10, font:{size:10}, padding:8}},
-        tooltip:{ backgroundColor:'#292722', borderColor:'#292722', borderWidth:1, titleColor:'#F5F3ED', bodyColor:'#F5F3ED', padding:8,
+      plugins:{ legend:{display:true, position:'top', align:'end', labels:{color:'#5F7078', boxWidth:10, font:{size:10}, padding:8}},
+        tooltip:{ backgroundColor:'#263640', borderColor:'#263640', borderWidth:1, titleColor:'#F5F7F7', bodyColor:'#F5F7F7', padding:8,
           callbacks:{ label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}%` } } },
-      scales:{ x:{grid:{display:false}, ticks:{color:COLORS.text}}, y:{grid:{color:COLORS.grid}, ticks:{color:COLORS.text, callback:v=>v+'%'}} }
+      scales:{ x:{grid:{display:false}, ticks:{color:'#5F7078'}}, y:{grid:{color:'#E4EAEC'}, ticks:{color:'#5F7078', callback:v=>v+'%'}} }
     })
   });
 }
-buildOverviewRoi('sdypoolcharm');
-buildOverviewRoi('zlblacke');
+buildOverviewRoi();
 
-// ---- Sidebar TOC navigation: tab switch + expand/collapse + anchor scroll ----
-const tabContents = { overview: document.getElementById('tab-overview'),
-  sdypoolcharm: document.getElementById('tab-sdypoolcharm'), zlblacke: document.getElementById('tab-zlblacke') };
+/* ========== 总览：核心指标对比表 ========== */
+(function(){
+  const rows = [
+    ['广告消耗',   '17,260', '9,995',  '-7,265', '-42.1%', 'pos'],
+    ['CPI',        '2.57',   '2.42',   '-0.15',  '-5.9%',  'pos'],
+    ['广告LTV(D0)', '1.19',  '1.29',   '+0.10',  '+8.2%',  'pos'],
+    ['广告eCPM(D0)','97.10', '110.06', '+12.96', '+13.3%', 'pos'],
+    ['D1留存',     '31.36%', '29.20%', '-2.2pp', '-6.9%',  'neg'],
+    ['人均播放次数(D0)','12.27','11.72','-0.55', '-4.5%',  'neg'],
+    ['D0 ROI',     '46.39%', '53.37%', '+6.98pp','+15.0%', 'pos'],
+  ].map(r=>{
+    const cls = r[5]==='pos' ? 'pos' : 'neg';
+    return `<tr><td class="label-cell">${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td class="num ${cls}">${r[3]}</td><td class="num ${cls}">${r[4]}</td></tr>`;
+  }).join('');
+  document.getElementById('ov-tbody').innerHTML = rows;
+})();
 
-function activateTab(tabName){
-  Object.values(tabContents).forEach(c=>c.classList.remove('active'));
-  tabContents[tabName].classList.add('active');
-  document.querySelectorAll('.toc-leaf').forEach(b=> b.classList.toggle('active', b.dataset.tab===tabName));
-  document.querySelectorAll('.toc-parent').forEach(b=> b.classList.toggle('active-pkg', b.dataset.tab===tabName));
-}
-
-document.querySelectorAll('.toc-leaf').forEach(btn=>{
-  btn.addEventListener('click', ()=>{ activateTab(btn.dataset.tab); window.scrollTo({top:0,behavior:'smooth'}); });
-});
-
-document.querySelectorAll('.toc-parent').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    activateTab(btn.dataset.tab);
-    const children = btn.nextElementSibling;
-    const isOpen = children.classList.contains('open');
-    // close other groups
-    document.querySelectorAll('.toc-children').forEach(c=>c.classList.remove('open'));
-    document.querySelectorAll('.toc-parent').forEach(p=>p.classList.remove('expanded'));
-    if(!isOpen){ children.classList.add('open'); btn.classList.add('expanded'); }
-    window.scrollTo({top:0,behavior:'smooth'});
+/* ========== 侧边栏导航 & 折叠 ========== */
+(function(){
+  function scrollToId(id){
+    const t = document.getElementById(id);
+    if(t) t.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  function setNav(tabName){
+    document.querySelectorAll('.toc-leaf').forEach(b=> b.classList.toggle('active', b.dataset.tab===tabName));
+    document.querySelectorAll('.toc-parent').forEach(b=> b.classList.toggle('active-pkg', b.dataset.tab===tabName));
+  }
+  document.querySelectorAll('.toc-leaf').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      setNav(btn.dataset.tab);
+      if(btn.dataset.target) scrollToId(btn.dataset.target);
+      else window.scrollTo({top:0,behavior:'smooth'});
+    });
   });
-});
-
-document.querySelectorAll('.toc-child').forEach(btn=>{
-  btn.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    activateTab(btn.dataset.tab);
-    document.querySelectorAll('.toc-child').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    setTimeout(()=>{
-      const target = document.getElementById(btn.dataset.target);
-      if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
-    }, 50);
+  document.querySelectorAll('.toc-parent').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      setNav(btn.dataset.tab);
+      const children = btn.nextElementSibling;
+      const isOpen = children && children.classList.contains('open');
+      document.querySelectorAll('.toc-children').forEach(c=>c.classList.remove('open'));
+      document.querySelectorAll('.toc-parent').forEach(p=>p.classList.remove('expanded'));
+      if(!isOpen && children){ children.classList.add('open'); btn.classList.add('expanded'); }
+      scrollToId(btn.dataset.target || 'zlb-head');
+    });
   });
-});
+  document.querySelectorAll('.toc-child').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      document.querySelectorAll('.toc-child').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      setTimeout(()=> scrollToId(btn.dataset.target), 50);
+    });
+  });
+  const sidebar = document.getElementById('sidebar');
+  const mainArea = document.getElementById('mainArea');
+  document.getElementById('collapseBtn').addEventListener('click', ()=>{
+    sidebar.classList.toggle('collapsed');
+    mainArea.classList.toggle('collapsed');
+  });
+  // 默认展开 zlblacke 组
+  const parent = document.querySelector('.toc-parent');
+  const children = parent && parent.nextElementSibling;
+  if(parent && children){ children.classList.add('open'); parent.classList.add('expanded'); }
+})();
 
-// ---- Sidebar collapse ----
-const sidebar = document.getElementById('sidebar');
-const mainArea = document.getElementById('mainArea');
-document.getElementById('collapseBtn').addEventListener('click', ()=>{
-  sidebar.classList.toggle('collapsed');
-  mainArea.classList.toggle('collapsed');
-});
+/* 证据链 */
+document.getElementById('bi-link').textContent='投放分析 · zlblacke（2026-08-21 ~ 09-03）';
+document.getElementById('trace-id').textContent='48aa0f33b8d24506b9a94438e34a38d5';
 </script>
 </body>
 </html>
